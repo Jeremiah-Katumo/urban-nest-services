@@ -3,12 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone
 from ...domain.entities.auth_entity import RegisterSchema
-from ...domain.interfaces.user_interface import IUser
+from ...domain.interfaces.auth_interface import IAuth
 from ...models.models import UserModel
 from ...core.security import hash_password, verify_password
 
 
-class AuthRepository(IUser):
+class AuthRepository(IAuth):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
@@ -23,6 +23,7 @@ class AuthRepository(IUser):
             )
 
         user = UserModel(
+            username=data.username,
             first_name=data.first_name,
             last_name=data.last_name,
             email=data.email,

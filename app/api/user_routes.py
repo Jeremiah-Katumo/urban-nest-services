@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.entities.user_entity import UserRead, UserCreate
 from ..infrastructure.db.database import db
@@ -10,16 +11,16 @@ router = APIRouter()
 
 @router.post("/", response_model=UserRead)
 async def get_all(
-    skip: int,
-    limit: int,
-    search: str,
-    sort_by: str,
-    order: str, 
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, le=20),
+    columns: Optional[str] = None,
+    search: Optional[str] = None,
+    sort: Optional[str] = "created_at",
     db: AsyncSession = Depends(db.get_db)
 ):
     repo = UserRepository(db)
     use_case = UserUseCase(repo)
-    users = await use_case.get_all(skip, limit, search, sort_by, order)
+    users = await use_case.get_all(page, limit, columns, search, sort)
     return users
 
 @router.get("/{id}", response_model=UserRead)

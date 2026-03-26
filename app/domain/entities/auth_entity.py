@@ -3,6 +3,7 @@ from ..enums.user_enum import UserRoles
 
 
 class RegisterSchema(BaseModel):
+    username: str
     first_name: str
     last_name: str
     email: EmailStr

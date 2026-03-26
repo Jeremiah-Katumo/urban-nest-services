@@ -75,6 +75,7 @@ class UserModel(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
 
+    username = Column(String(100), nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
 

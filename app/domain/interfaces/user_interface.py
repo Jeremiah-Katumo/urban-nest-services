@@ -11,11 +11,11 @@ class IUser(ABC):
     @abstractmethod
     async def get_all(
         self,
-        skip: int,
+        page: int,
         limit: int,
-        search: str,
-        sort_by: str,
-        order: str
+        columns: str | None,
+        filter: str | None,
+        sort: str | None,
     ):
         raise NotImplementedError
     

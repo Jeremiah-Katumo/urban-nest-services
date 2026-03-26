@@ -12,13 +12,13 @@ class UserUseCase:
     
     async def get_all(
         self,
-        skip: int,
+        page: int,
         limit: int,
-        search: str,
-        sort_by: str,
-        order: str
+        columns: str | None,
+        filter: str | None,
+        sort: str | None,
     ):
-        return self.repo.get_all(skip, limit, search, sort_by, order)
+        return self.repo.get_all(page, limit, columns, filter, sort)
     
     async def get_by_email(self, email: str) -> UserRead:
         return self.repo.get_by_email(email)

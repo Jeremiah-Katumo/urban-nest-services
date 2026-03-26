@@ -5,6 +5,7 @@ from ..enums.user_enum import UserStatus, UserRoles
 
 
 class UserBase(BaseModel):
+    username: str
     first_name: str
     last_name: str
     email: EmailStr
@@ -20,6 +21,7 @@ class UserUpdate(UserBase):
 
 class UserRead(BaseModel):
     id: str
+    username: str
     first_name: str
     last_name: str
     email: EmailStr

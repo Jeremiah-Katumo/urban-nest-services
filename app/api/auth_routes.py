@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt
+from fastapi.security import OAuth2PasswordRequestForm
 from ..infrastructure.db.database import db
 from ..domain.entities.auth_entity import RegisterSchema, LoginSchema
 from ..domain.usecases.auth_usecase import AuthUseCase
@@ -31,11 +32,11 @@ async def register(data: RegisterSchema, session: AsyncSession = Depends(db.get_
 
 
 @router.post("/login")
-async def login(data: LoginSchema, session: AsyncSession = Depends(db.get_db)):
+async def login(data: OAuth2PasswordRequestForm, session: AsyncSession = Depends(db.get_db)):
     repo = AuthRepository(session)
     use_case = AuthUseCase(repo)
     
-    user = await use_case.authenticate(data.email, data.password)
+    user = await use_case.authenticate(data.username, data.password)
 
     if not user:
         raise HTTPException(401, "Invalid credentials")
