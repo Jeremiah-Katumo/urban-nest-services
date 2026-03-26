@@ -1,14 +1,36 @@
 from ..interfaces.user_interface import IUser
-from ...infrastructure.repositories.user_repository import UserRepository
-from ..entities.user_entity import UserCreate, UserRead, UserUpdate
+from ..entities.user_entity import UserRead, UserUpdate
+from ..enums.user_enum import UserRoles
 
 
 class UserUseCase:
     def __init__(self, repo: IUser):
         self.repo = repo
-        
-    async def create(self, data):
-        return await self.repo.create(**data)
     
     async def get_by_id(self, id: str):
         return await self.repo.get_by_id(id)
+    
+    async def get_all(
+        self,
+        page: int,
+        limit: int,
+        columns: str | None,
+        filter: str | None,
+        sort: str | None,
+    ):
+        return await self.repo.get_all(page, limit, columns, filter, sort)
+    
+    async def get_by_email(self, email: str) -> UserRead:
+        return await self.repo.get_by_email(email)
+    
+    async def get_by_username(self, username: str) -> UserRead:
+        return await self.repo.get_by_username(username)
+    
+    async def update(self, id: str, data: UserUpdate):
+        return await self.repo.update(id, data)
+    
+    async def assign_role(self, user_id: str, role: UserRoles) -> UserRead:
+        return await self.repo.assign_role(user_id, role)
+    
+    async def soft_delete(self, id: str):
+        return await self.repo.soft_delete(id)

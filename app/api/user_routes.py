@@ -1,24 +1,54 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..domain.entities.user_entity import UserRead, UserCreate
+# from fastapi_cache.decorator import cache
+from ..domain.entities.user_entity import UserRead, UserCreate, UserPaginationList
 from ..infrastructure.db.database import db
 from ..domain.usecases.user_usecase import UserUseCase
 from ..infrastructure.repositories.user_repository import UserRepository
 from ..models.models import UserModel
+from ..core.filter_cache_manager import list_cache_key_builder
+from ..dependencies.rbac import require_roles
+
 
 router = APIRouter()
 
-@router.post("/", response_model=UserRead)
-async def create_user(user_data: UserCreate, db: AsyncSession = Depends(db.get_db)):
-    user = UserModel(**user_data.model_dump())
+@router.post("/", response_model=UserPaginationList, dependencies=[Depends(require_roles(["admin"]))])
+# @cache(expire=3600, namespace="get_all_products_list", key_builder=list_cache_key_builder)
+async def get_all(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, le=20),
+    columns: Optional[str] = None,
+    search: Optional[str] = None,
+    sort: Optional[str] = "created_at",
+    db: AsyncSession = Depends(db.get_db)
+):
     repo = UserRepository(db)
     use_case = UserUseCase(repo)
-    new_user = await use_case.create(user_data)
-    return new_user
+    
+    skip = max((page - 1) * limit, 0)
+    
+    result = await use_case.get_all(skip, limit, columns, search, sort)
+    
+    return result  
 
-@router.get("/{id}", response_model=UserRead)
+@router.get("/{id}", response_model=UserRead, dependencies=[Depends(require_roles(["admin", "tenant", "landlord", "agent"]))])
 async def get_by_id(id: str, db: AsyncSession = Depends(db.get_db)):
     repo = UserRepository(db)
     use_case = UserUseCase(repo)
     user = await use_case.get_by_id(id)
+    return user
+
+@router.get("/{email}/email", response_model=UserRead, dependencies=[Depends(require_roles(["admin"]))])
+async def get_by_email(email: str, db: AsyncSession = Depends(db.get_db)):
+    repo = UserRepository(db)
+    use_case = UserUseCase(repo)
+    user = await use_case.get_by_email(email)
+    return user
+
+@router.get("/{username}/user", response_model=UserRead, dependencies=[Depends(require_roles(["admin"]))])
+async def get_by_username(username: str, db: AsyncSession = Depends(db.get_db)):
+    repo = UserRepository(db)
+    use_case = UserUseCase(repo)
+    user = await use_case.get_by_username(username)
     return user
