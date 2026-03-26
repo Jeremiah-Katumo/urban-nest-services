@@ -1,12 +1,5 @@
 from enum import Enum
 
-class TenantStatus(str, Enum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    
-class LandlordStatus(str, Enum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
     
 class UserStatus(str, Enum):
     ACTIVE = "active"
@@ -20,3 +13,4 @@ class UserRoles(str, Enum):
     ADMIN = "admin"
     SUPER_ADMIN = "super_admin"
     MANAGER = "manager"
+    

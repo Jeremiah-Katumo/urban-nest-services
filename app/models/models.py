@@ -1,9 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime, timezone
 import uuid
-
-from ..enums.user_enum import TenantStatus, LandlordStatus, UserRoles
+from ..domain.enums import landlord_enum, agent_enum, user_enum, campaign_enum, tenant_enum, house_enum, booking_enum
 
 Base = declarative_base()
 
@@ -12,15 +11,21 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
+class SoftDeleteMixin:
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+
 class TenantModel(Base):
     __tablename__ = "tenants"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(100), nullable=False)
-    email = Column(String(50), nullable=False)
+    email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(TenantStatus), default=TenantStatus.ACTIVE)
+    status = Column(SqlEnum(tenant_enum.TenantStatus), default=tenant_enum.TenantStatus.ACTIVE)
+    
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
@@ -33,10 +38,32 @@ class LandlordModel(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(100), nullable=False)
-    email = Column(String(50), nullable=False)
+    email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(LandlordStatus), default=LandlordStatus.ACTIVE)
+    status = Column(SqlEnum(landlord_enum.LandlordStatus), default=landlord_enum.LandlordStatus.ACTIVE)
+    
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime(timezone=True))
+    
+    properties = relationship("PropertyModel", back_populates="landlord")
+    
+    
+class AgentModel(Base):
+    __tablename__ = "agents"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(100), nullable=False)
+    email = Column(String(50), unique=True, nullable=False, index=True)
+    phone = Column(String(20), nullable=False)
+
+    status = Column(SqlEnum(agent_enum.AgentStatus), default=agent_enum.AgentStatus.ACTIVE)
+    
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
@@ -52,23 +79,26 @@ class UserModel(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
 
-    email = Column(String(50), nullable=False)
+    email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
+    avatar = Column(String(30), nullable=True)
 
-    status = Column(SqlEnum(TenantStatus), default=TenantStatus.ACTIVE)
+    status = Column(SqlEnum(tenant_enum.TenantStatus), default=tenant_enum.TenantStatus.ACTIVE)
 
     role = Column(
-        SqlEnum(UserRoles),
+        SqlEnum(user_enum.UserRoles),
         nullable=False,
-        default=UserRoles.CUSTOMER
+        default=user_enum.UserRoles.CUSTOMER
     )
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
-
-    properties = relationship("PropertyModel", back_populates="user")
+    
+    tenant = relationship("TenantModel", backref="user", uselist=False)
+    landlord = relationship("LandlordModel", backref="user", uselist=False)
+    agent = relationship("AgentModel", backref="user", uselist=False)
 
 
 class PropertyModel(Base):
@@ -77,17 +107,25 @@ class PropertyModel(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
 
     title = Column(String(100), nullable=False)
-    price = Column(Integer, nullable=False)
-    location = Column(String(50))
+    description = Column(Text, nullable=True)
+    location = Column(String(50), index=True)
+    price = Column(Integer, index=True)
+    
+    bedrooms = Column(Integer)
+    bathrooms = Column(Integer)
+    images = Column(JSON, nullable=True)
+    is_available = Column(SqlEnum(house_enum.HouseStatus), default=house_enum.HouseStatus.AVAILABLE)
+    amenities = Column(JSON, nullable=True)
 
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+    landlord_id = Column(String(36), ForeignKey("landlords.id", ondelete="CASCADE"))
+    agent_id = Column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
 
-    user = relationship("UserModel", back_populates="properties")
+    landlord = relationship("LandlordModel", back_populates="properties")
 
 
 class CampaignModel(Base):
@@ -98,7 +136,7 @@ class CampaignModel(Base):
     title = Column(String(255))
     content = Column(Text)
 
-    status = Column(String(20), default="draft")
+    status = Column(SqlEnum(campaign_enum.CampaignStatus), default=campaign_enum.CampaignStatus.DRAFT)
     target_user_segment = Column(String(255))
 
     sent_at = Column(DateTime)
@@ -108,3 +146,25 @@ class CampaignModel(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
+    
+    
+class BookingModel(Base):
+    __tablename__ = "bookings"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+
+    tenant_id = Column(String(36), ForeignKey("tenants.id"))
+    property_id = Column(String(36), ForeignKey("properties.id"))
+
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    total_price = Column(Integer, index=True)
+    
+    status = Column(SqlEnum(booking_enum.BookingStatus), default=booking_enum.BookingStatus.PENDING)
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime(timezone=True))
+    
+    property = relationship("PropertyModel")

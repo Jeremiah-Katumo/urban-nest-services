@@ -2,9 +2,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, desc, asc
 from datetime import datetime, timezone
-from ..entities.user_entity import UserCreate, UserUpdate
-from ..interfaces.user_interface import IUser
-from ..models.models import UserModel
+from ...domain.entities.user_entity import UserCreate, UserUpdate
+from ...domain.interfaces.user_interface import IUser
+from ...models.models import UserModel
 
 
 

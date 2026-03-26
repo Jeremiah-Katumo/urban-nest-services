@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..entities.user_entity import UserRead, UserCreate
-from ..database import db
-from ..usecase.user_usecase import UserUseCase
-from ..repository.user_repository import UserRepository
+from ..domain.entities.user_entity import UserRead, UserCreate
+from ..infrastructure.db.database import db
+from ..domain.usecases.user_usecase import UserUseCase
+from ..infrastructure.repositories.user_repository import UserRepository
 from ..models.models import UserModel
 
 router = APIRouter()

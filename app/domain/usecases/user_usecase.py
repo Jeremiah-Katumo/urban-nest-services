@@ -1,5 +1,5 @@
 from ..interfaces.user_interface import IUser
-from ..repository.user_repository import UserRepository
+from ...infrastructure.repositories.user_repository import UserRepository
 from ..entities.user_entity import UserCreate, UserRead, UserUpdate
 
 
