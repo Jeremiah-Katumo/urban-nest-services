@@ -18,11 +18,18 @@ class TenantModel(Base):
     __tablename__ = "tenants"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    name = Column(String(100), nullable=False)
+    username = Column(String(100), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
     status = Column(SqlEnum(tenant_enum.TenantStatus), default=tenant_enum.TenantStatus.ACTIVE)
+    role = Column(
+        SqlEnum(user_enum.UserRoles),
+        nullable=False,
+        default=user_enum.UserRoles.CUSTOMER
+    )
     
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
@@ -36,11 +43,18 @@ class LandlordModel(Base):
     __tablename__ = "landlords"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    name = Column(String(100), nullable=False)
+    username = Column(String(100), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
     status = Column(SqlEnum(landlord_enum.LandlordStatus), default=landlord_enum.LandlordStatus.ACTIVE)
+    role = Column(
+        SqlEnum(user_enum.UserRoles),
+        nullable=False,
+        default=user_enum.UserRoles.CUSTOMER
+    )
     
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
@@ -56,11 +70,18 @@ class AgentModel(Base):
     __tablename__ = "agents"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    name = Column(String(100), nullable=False)
+    username = Column(String(100), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
     status = Column(SqlEnum(agent_enum.AgentStatus), default=agent_enum.AgentStatus.ACTIVE)
+    role = Column(
+        SqlEnum(user_enum.UserRoles),
+        nullable=False,
+        default=user_enum.UserRoles.CUSTOMER
+    )
     
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
@@ -84,7 +105,7 @@ class UserModel(Base):
     avatar = Column(String(30), nullable=True)
     password = Column(String(255), nullable=False)
 
-    status = Column(SqlEnum(tenant_enum.TenantStatus), default=tenant_enum.TenantStatus.ACTIVE)
+    status = Column(SqlEnum(user_enum.UserStatus), default=user_enum.UserStatus.ACTIVE)
 
     role = Column(
         SqlEnum(user_enum.UserRoles),

@@ -1,8 +1,8 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, asc, desc, func
+from sqlalchemy import select
 from datetime import datetime, timezone
-from ...models.models import UserModel
+from ...models.models import UserModel, TenantModel, LandlordModel, AgentModel
 from ...domain.enums.user_enum import UserRoles
 from ...core import security, query_manager
 from ...domain.interfaces.user_interface import IUser
@@ -104,11 +104,56 @@ class UserRepository(IUser):
     async def assign_role(self, user_id: str, role: UserRoles):
         user = await self.get_by_id(user_id)
 
+        # Prevent duplicate role assignment
+        if user.role == role:
+            return user
+
         user.role = role
         user.updated_at = datetime.now(timezone.utc)
 
+        # Create role-specific profile
+        new_profile = None
+        if role == UserRoles.TENANT:
+            new_profile = TenantModel(
+                user_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                email=user.email,
+                phone=user.phone,
+                created_at=datetime.now(timezone.utc)
+            )
+
+        elif role == UserRoles.LANDLORD:
+            new_profile = LandlordModel(
+                user_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                email=user.email,
+                phone=user.phone,
+                created_at=datetime.now(timezone.utc)
+            )
+
+        elif role == UserRoles.AGENT:
+            new_profile = AgentModel(
+                user_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                email=user.email,
+                phone=user.phone,
+                created_at=datetime.now(timezone.utc)
+            )
+
+        if new_profile:
+            self.db_session.add(new_profile)
+            
         await self.db_session.commit()
         await self.db_session.refresh(user)
+        
+        if new_profile:
+            await self.db_session.refresh(new_profile)
 
         return user
 
