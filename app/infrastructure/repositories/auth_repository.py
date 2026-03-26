@@ -12,7 +12,7 @@ class AuthRepository(IAuth):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    async def register(self, data: RegisterSchema):
+    async def register(self, data):
         result = await self.db_session.execute(
             select(UserModel).where(UserModel.email == data.email)
         )

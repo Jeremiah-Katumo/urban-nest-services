@@ -6,7 +6,7 @@ class AuthUseCase:
     def __init__(self, repo: IAuth):
         self.repo = repo
         
-    async def register(self, data: RegisterSchema):
+    async def register(self, data):
         return await self.repo.register(data)
     
     async def authenticate(self, email: str, password: str):

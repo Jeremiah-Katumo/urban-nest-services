@@ -32,7 +32,7 @@ async def register(data: RegisterSchema, session: AsyncSession = Depends(db.get_
 
 
 @router.post("/login")
-async def login(data: OAuth2PasswordRequestForm, session: AsyncSession = Depends(db.get_db)):
+async def login(data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(db.get_db)):
     repo = AuthRepository(session)
     use_case = AuthUseCase(repo)
     

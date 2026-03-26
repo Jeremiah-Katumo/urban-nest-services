@@ -5,7 +5,7 @@ from ..entities.auth_entity import RegisterSchema
 
 class IAuth(ABC):
     @abstractmethod
-    async def register(self, data: RegisterSchema):
+    async def register(self, data):
         raise NotImplementedError
     
     @abstractmethod
