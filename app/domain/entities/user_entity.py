@@ -34,5 +34,7 @@ class UserRead(BaseModel):
     
 class UserPaginationList(BaseModel):
     items: Optional[List[UserRead]]
-    pages: int
+    page: int
     total: int
+    pages: int
+    page_size: int

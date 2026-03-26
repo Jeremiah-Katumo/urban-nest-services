@@ -26,7 +26,7 @@ class UserRepository(IUser):
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
-                detail="User not found")
+                detail=f"User not found with id: {id}")
 
         return user
 
@@ -40,16 +40,16 @@ class UserRepository(IUser):
     ):
         stmt = select(UserModel).where(UserModel.deleted_at.is_(None))
 
-        stmt = query_manager.QueryManager.apply_columns(stmt, UserModel, columns) 
-        stmt = query_manager.QueryManager.apply_filters(stmt, UserModel, filter) 
-        stmt = query_manager.QueryManager.apply_sort(stmt, UserModel, sort) 
-        result, total = await query_manager.QueryManager.paginate( self.db_session, stmt, page, limit)
+        stmt = await query_manager.QueryManager.apply_columns(stmt, UserModel, columns) 
+        stmt = await query_manager.QueryManager.apply_filters(stmt, UserModel, filter) 
+        stmt = await query_manager.QueryManager.apply_sort(stmt, UserModel, sort) 
+        result, total = await query_manager.QueryManager.paginate(self.db_session, stmt, page, limit)
 
         result = await self.db_session.execute(stmt)
 
         users = result.scalars().all()
         
-        return query_manager.QueryManager.build_response(users, page, limit, total)
+        return await query_manager.QueryManager.build_response(users, page, limit, total)
 
     async def get_by_email(self, email: str):
         result = await self.db_session.execute(
@@ -59,7 +59,14 @@ class UserRepository(IUser):
             )
         )
 
-        return result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"User not found with email: {email}")
+            
+        return user
 
     async def get_by_username(self, username: str):
         result = await self.db_session.execute(
@@ -69,7 +76,14 @@ class UserRepository(IUser):
             )
         )
 
-        return result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"User not found with username: {username}")
+            
+        return user
 
     async def update(self, user_id: str, data: UserUpdate):
         user = await self.get_by_id(user_id)

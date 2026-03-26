@@ -15,6 +15,7 @@ from ..core.security import (
 from ..dependencies.auth import get_current_user
 from ..redis.redis_client import blacklist_token
 
+
 router = APIRouter()
 
 
