@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from ..enums.user_enum import UserStatus, UserRoles
 
@@ -30,3 +30,7 @@ class UserRead(BaseModel):
     updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
     
+class UserPaginationList(BaseModel):
+    items: Optional[List[UserRead]]
+    pages: int
+    total: int

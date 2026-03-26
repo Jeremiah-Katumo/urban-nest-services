@@ -9,16 +9,36 @@ from ..models.models import UserModel
 router = APIRouter()
 
 @router.post("/", response_model=UserRead)
-async def create_user(user_data: UserCreate, db: AsyncSession = Depends(db.get_db)):
-    user = UserModel(**user_data.model_dump())
+async def get_all(
+    skip: int,
+    limit: int,
+    search: str,
+    sort_by: str,
+    order: str, 
+    db: AsyncSession = Depends(db.get_db)
+):
     repo = UserRepository(db)
     use_case = UserUseCase(repo)
-    new_user = await use_case.create(user_data)
-    return new_user
+    users = await use_case.get_all(skip, limit, search, sort_by, order)
+    return users
 
 @router.get("/{id}", response_model=UserRead)
 async def get_by_id(id: str, db: AsyncSession = Depends(db.get_db)):
     repo = UserRepository(db)
     use_case = UserUseCase(repo)
     user = await use_case.get_by_id(id)
+    return user
+
+@router.get("/{email}", response_model=UserRead)
+async def get_by_id(email: str, db: AsyncSession = Depends(db.get_db)):
+    repo = UserRepository(db)
+    use_case = UserUseCase(repo)
+    user = await use_case.get_by_email(email)
+    return user
+
+@router.get("/{username}", response_model=UserRead)
+async def get_by_id(username: str, db: AsyncSession = Depends(db.get_db)):
+    repo = UserRepository(db)
+    use_case = UserUseCase(repo)
+    user = await use_case.get_by_username(username)
     return user

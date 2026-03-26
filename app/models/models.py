@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import uuid
 from ..domain.enums import landlord_enum, agent_enum, user_enum, campaign_enum, tenant_enum, house_enum, booking_enum
@@ -7,10 +7,8 @@ from ..infrastructure.db.database import db
 
 Base = db.Base
 
-
 def generate_uuid():
     return str(uuid.uuid4())
-
 
 class SoftDeleteMixin:
     deleted_at = Column(DateTime(timezone=True), nullable=True)
@@ -83,6 +81,7 @@ class UserModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
     avatar = Column(String(30), nullable=True)
+    password = Column(String(255), nullable=False)
 
     status = Column(SqlEnum(tenant_enum.TenantStatus), default=tenant_enum.TenantStatus.ACTIVE)
 

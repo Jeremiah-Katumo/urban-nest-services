@@ -1,5 +1,7 @@
 from fastapi import FastAPI
-from .api import user_routes
+from .api import (
+    auth_routes, user_routes
+)
 from .infrastructure.db.database import db
 
 app = FastAPI(root_path="/app/v1")
@@ -12,4 +14,5 @@ async def startup():
 def home():
     return {"message": "Welcome to Urban Homes"}
 
+app.include_router(auth_routes.router, prefix="/auth", tags=["Auth"])
 app.include_router(user_routes.router, prefix="/users", tags=["User"])
