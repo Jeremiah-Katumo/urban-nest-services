@@ -3,8 +3,9 @@ from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime, timezone
 import uuid
 from ..domain.enums import landlord_enum, agent_enum, user_enum, campaign_enum, tenant_enum, house_enum, booking_enum
+from ..infrastructure.db.database import db
 
-Base = declarative_base()
+Base = db.Base
 
 
 def generate_uuid():

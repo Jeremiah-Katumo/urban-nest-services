@@ -13,12 +13,16 @@ class AsyncDatabaseSession:
     _instance = None
     _lock = Lock()
 
+    # def __new__(cls):
+    #     if cls._instance is None:
+    #         with cls._lock:
+    #             if cls._instance is None:
+    #                 cls._instance = super().__new__(cls)
+    #                 cls._instance.get_engine()
+    #     return cls._instance
     def __new__(cls):
         if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance.get_engine()
+            cls._instance = super(AsyncDatabaseSession, cls).__new__(cls)
         return cls._instance
     
     def __init__(self):
@@ -27,7 +31,7 @@ class AsyncDatabaseSession:
         password = os.getenv("MYSQLDB_PASSWORD")
         host = os.getenv("MYSQLDB_HOST")
         port = os.getenv("MYSQLDB_PORT")
-        name = os.getenv("MYSQLDB_NAME")
+        name = os.getenv("MYSQLDB_DB")
         
         self.db_url = "mysql+aiomysql://jeremy:Mysql.003@localhost:3306/urban_homes"
         
@@ -63,7 +67,7 @@ class AsyncDatabaseSession:
         async with self.SessionLocal() as session:
             try:
                 yield session
-                await session.commit()
+                # await session.commit()
             except Exception:
                 await session.rollback()
                 raise
