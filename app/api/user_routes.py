@@ -95,7 +95,12 @@ async def assign_role(
     return user
 
 
-@router.delete("/{id}", response_model=UserRead, status_code=status.HTTP_404_NOT_FOUND)
+@router.delete(
+    "/{id}", 
+    response_model=UserRead, 
+    dependencies=[Depends(require_roles(["admin"]))],
+    status_code=status.HTTP_404_NOT_FOUND
+)
 async def soft_delete(id: str, db: AsyncSession = Depends(db.get_db)):
     repo = UserRepository(db)
     use_case = UserUseCase(repo)
