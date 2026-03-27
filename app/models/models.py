@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import relationship
 from sqlalchemy import Table, Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON
-from ..domain.enums import landlord_enum, agent_enum, user_enum, campaign_enum, tenant_enum, house_enum, booking_enum, entity_enum
+from ..domain.enums import user_enum, campaign_enum, house_enum, booking_enum, entity_enum, base_enum
 from ..infrastructure.db.database import db
 
 Base = db.Base
@@ -39,7 +39,7 @@ class TenantModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(tenant_enum.TenantStatus), default=tenant_enum.TenantStatus.ACTIVE)
+    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
@@ -64,7 +64,7 @@ class LandlordModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(landlord_enum.LandlordStatus), default=landlord_enum.LandlordStatus.ACTIVE)
+    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
@@ -91,7 +91,7 @@ class AgentModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(agent_enum.AgentStatus), default=agent_enum.AgentStatus.ACTIVE)
+    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
@@ -120,7 +120,7 @@ class UserModel(Base):
     avatar = Column(String(30), nullable=True)
     password = Column(String(255), nullable=False)
 
-    status = Column(SqlEnum(user_enum.UserStatus), default=user_enum.UserStatus.ACTIVE)
+    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
 
     role = Column(
         SqlEnum(user_enum.UserRoles),
@@ -215,6 +215,7 @@ class FeatureModel(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text)
+    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
@@ -242,6 +243,7 @@ class EntityModel(Base):
         ),
         nullable=True
     )
+    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
     
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
