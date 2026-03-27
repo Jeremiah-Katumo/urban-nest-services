@@ -40,8 +40,12 @@ def list_cache_key_builder(
     *args,
     **kwargs,
 ):
-    query = str(request.query_params)
+    query_params = dict(request.query_params)
 
-    raw_key = f"{namespace}:{request.url.path}:{query}"
+    sorted_query = "&".join(
+        f"{k}={v}" for k, v in sorted(query_params.items())
+    )
+
+    raw_key = f"{namespace}:{request.url.path}:{sorted_query}"
 
     return hashlib.md5(raw_key.encode()).hexdigest()

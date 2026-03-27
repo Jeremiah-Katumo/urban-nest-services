@@ -14,7 +14,7 @@ class BaseRepository(Generic[TModel]):
         
     async def get_by_id(self, entity_id: str) -> TModel | None:
         result = await self.db.execute(
-            select(self.model).where(self.model.entity_id == entity_id)
+            select(self.model).where(self.model.id == entity_id)
         )
         return result.scalar_one_or_none()
     
@@ -23,13 +23,13 @@ class BaseRepository(Generic[TModel]):
         page: int,
         limit: int,
         columns: str | None,
-        filter: str | None,
+        search_filter: str | None,
         sort: str | None,
     ):
         stmt = select(self.model).where(self.model.deleted_at.is_(None))
         
         stmt = await query_manager.QueryManager.apply_columns(stmt, self.model, columns) 
-        stmt = await query_manager.QueryManager.apply_filters(stmt, self.model, filter) 
+        stmt = await query_manager.QueryManager.apply_filters(stmt, self.model, search_filter) 
         stmt = await query_manager.QueryManager.apply_sort(stmt, self.model, sort) 
         result, total = await query_manager.QueryManager.paginate(self.db, stmt, page, limit)
 

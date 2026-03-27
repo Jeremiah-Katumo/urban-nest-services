@@ -16,8 +16,13 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     pass
 
-class UserUpdate(UserBase):
-    pass 
+class UserUpdate(BaseModel):
+    username: str
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: str
+    status: UserStatus
 
 class UserRead(BaseModel):
     id: str

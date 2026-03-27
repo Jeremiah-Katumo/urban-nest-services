@@ -40,7 +40,7 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
         page: int = 1,
         limit: int = 10,
         columns: Optional[str] = None,
-        filter: Optional[str] = None,
+        search_filter: Optional[str] = None,
         sort: Optional[str] = None,
     ):
         # GuardRails
@@ -54,10 +54,10 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Limit must be between 1 and 100"
             )
             
-        return await self.repo.get_all(page, limit, columns, filter, sort)
+        return await self.repo.get_all(page, limit, columns, search_filter, sort)
     
     async def create(self, data: TCreate) -> TModel:
-        payload = data.model_dumps() if hasattr(data, "dict") else data
+        payload = data.dict() if hasattr(data, "dict") else data
         
         payload = await self.before_create(data)
         
@@ -68,7 +68,7 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
     async def update(self, entity_id: str, data: TUpdate) -> TModel:
         instance = await self.get_by_id(entity_id)
         
-        payload = data.model_dumps(exclude_unset=True) if hasattr(data, "dict") else data
+        payload = data.dict(exclude_unset=True) if hasattr(data, "dict") else data
         
         payload = await self.before_update(instance, payload)
         
