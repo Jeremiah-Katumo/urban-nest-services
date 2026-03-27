@@ -1,7 +1,6 @@
 import json
 import hashlib
 from fastapi import Request
-# from fastapi_cache.decorator import cache
 from ..redis.redis_client import redis_client
 
 FILTER_CACHE_TTL = 600 # 10 minutes

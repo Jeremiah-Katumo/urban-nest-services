@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-# from fastapi_cache.decorator import cache
+from fastapi_cache.decorator import cache
 from ..domain.entities.user_entity import UserRead, UserUpdate, UserPaginationList
 from ..infrastructure.db.database import db
 from ..domain.usecases.user_usecase import UserUseCase
@@ -9,7 +9,6 @@ from ..domain.enums.user_enum import UserRoles
 from ..infrastructure.repositories.user_repository import UserRepository
 from ..core.filter_cache_manager import list_cache_key_builder
 from ..dependencies.rbac import require_roles
-from ..dependencies.auth import get_current_user
 
 
 router = APIRouter()
@@ -25,7 +24,7 @@ def get_user_usecase(db: AsyncSession = Depends(db.get_db)):
     dependencies=[Depends(require_roles(["admin"]))],
     status_code=status.HTTP_200_OK
 )
-# @cache(expire=3600, namespace="get_all_products_list", key_builder=list_cache_key_builder)
+@cache(expire=3600, namespace="get_all_products_list", key_builder=list_cache_key_builder)
 async def get_all(
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
