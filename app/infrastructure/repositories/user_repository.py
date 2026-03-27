@@ -1,120 +1,64 @@
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone
 from ...models.models import UserModel, TenantModel, LandlordModel, AgentModel
 from ...domain.enums.user_enum import UserRoles
-from ...core import security, query_manager
 from ...domain.interfaces.user_interface import IUser
-from ...domain.entities.user_entity import UserUpdate
+from ...domain.entities.user_entity import UserUpdate, UserRead
+from ...core import security
+from ...infrastructure.repositories.base_repository import BaseRepository
 
 
-class UserRepository(IUser):
+class UserRepository(BaseRepository[UserModel], IUser):
     def __init__(self, db_session: AsyncSession):
-        self.db_session = db_session
+        super().__init__(db_session, UserModel)
 
-    async def get_by_id(self, user_id: str):
-        result = await self.db_session.execute(
-            select(UserModel).where(
-                UserModel.id == user_id,
-                UserModel.deleted_at.is_(None)
+    # Only keep custom queries
+    async def get_by_email(self, email: str) -> UserRead:
+        result = await self.db.execute(
+            select(self.model).where(
+                self.model.email == email,
+                self.model.deleted_at.is_(None)
             )
         )
+        return result.scalar_one_or_none()
 
-        user = result.scalar_one_or_none()
-
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"User not found with id: {id}")
-
-        return user
-
-    async def get_all(
-        self,
-        page: int,
-        limit: int,
-        columns: str | None,
-        filter: str | None,
-        sort: str | None,
-    ):
-        stmt = select(UserModel).where(UserModel.deleted_at.is_(None))
-
-        stmt = await query_manager.QueryManager.apply_columns(stmt, UserModel, columns) 
-        stmt = await query_manager.QueryManager.apply_filters(stmt, UserModel, filter) 
-        stmt = await query_manager.QueryManager.apply_sort(stmt, UserModel, sort) 
-        result, total = await query_manager.QueryManager.paginate(self.db_session, stmt, page, limit)
-
-        result = await self.db_session.execute(stmt)
-
-        users = result.scalars().all()
-        
-        return await query_manager.QueryManager.build_response(users, page, limit, total)
-
-    async def get_by_email(self, email: str):
-        result = await self.db_session.execute(
-            select(UserModel).where(
-                UserModel.email == email,
-                UserModel.deleted_at.is_(None)
+    async def get_by_username(self, username: str) -> UserRead:
+        result = await self.db.execute(
+            select(self.model).where(
+                self.model.username == username,
+                self.model.deleted_at.is_(None)
             )
         )
+        return result.scalar_one_or_none()
 
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"User not found with email: {email}")
-            
-        return user
+    # Override update ONLY for password handling
+    async def update(self, user_id: str, data: UserUpdate) -> UserRead:
+        if "password" in data:
+            data["password"] = security.hash_password(data["password"])
 
-    async def get_by_username(self, username: str):
-        result = await self.db_session.execute(
-            select(UserModel).where(
-                UserModel.username == username,
-                UserModel.deleted_at.is_(None)
-            )
-        )
+        return await super().update(user_id, data)
 
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"User not found with username: {username}")
-            
-        return user
-
-    async def update(self, user_id: str, data: UserUpdate):
+    # Custom business logic stays here (role assignment)
+    async def assign_role(self, user_id: str, role: UserRoles) -> UserRead:
         user = await self.get_by_id(user_id)
 
-        for field, value in data.dict(exclude_unset=True).items():
-            if field == "password":
-                value = security.hash_password(value)
-
-            setattr(user, field, value)
-
-        user.updated_at = datetime.now(timezone.utc)
-
-        await self.db_session.commit()
-        await self.db_session.refresh(user)
-
-        return user
-
-    async def assign_role(self, user_id: str, role: UserRoles):
-        user = await self.get_by_id(user_id)
-
-        # Prevent duplicate role assignment
         if user.role == role:
             return user
 
         user.role = role
         user.updated_at = datetime.now(timezone.utc)
 
-        # Create role-specific profile
-        new_profile = None
-        if role == UserRoles.TENANT:
-            new_profile = TenantModel(
+        profile_map = {
+            UserRoles.TENANT: TenantModel,
+            UserRoles.LANDLORD: LandlordModel,
+            UserRoles.AGENT: AgentModel,
+        }
+
+        profile_class = profile_map.get(role)
+
+        if profile_class:
+            profile = profile_class(
                 user_id=user.id,
                 username=user.username,
                 first_name=user.first_name,
@@ -123,45 +67,15 @@ class UserRepository(IUser):
                 phone=user.phone,
                 created_at=datetime.now(timezone.utc)
             )
+            self.db.add(profile)
 
-        elif role == UserRoles.LANDLORD:
-            new_profile = LandlordModel(
-                user_id=user.id,
-                username=user.username,
-                first_name=user.first_name,
-                last_name=user.last_name,
-                email=user.email,
-                phone=user.phone,
-                created_at=datetime.now(timezone.utc)
-            )
-
-        elif role == UserRoles.AGENT:
-            new_profile = AgentModel(
-                user_id=user.id,
-                username=user.username,
-                first_name=user.first_name,
-                last_name=user.last_name,
-                email=user.email,
-                phone=user.phone,
-                created_at=datetime.now(timezone.utc)
-            )
-
-        if new_profile:
-            self.db_session.add(new_profile)
-            
-        await self.db_session.commit()
-        await self.db_session.refresh(user)
-        
-        if new_profile:
-            await self.db_session.refresh(new_profile)
+        await self.db.commit()
+        await self.db.refresh(user)
 
         return user
 
-    async def soft_delete(self, user_id: str):
-        user = await self.get_by_id(user_id)
-
-        user.deleted_at = datetime.now(timezone.utc)
-
-        await self.db_session.commit()
-
+    # Optional: override soft delete response only
+    async def soft_delete(self, user_id: str, soft: bool = True):
+        await super().soft_delete(user_id, soft)
         return {"message": "User deleted successfully"}
+    

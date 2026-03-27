@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, status
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 # from fastapi_cache.decorator import cache
-from ..domain.entities.user_entity import UserRead, UserCreate, UserPaginationList
+from ..domain.entities.user_entity import UserRead, UserUpdate, UserPaginationList
 from ..infrastructure.db.database import db
 from ..domain.usecases.user_usecase import UserUseCase
 from ..domain.enums.user_enum import UserRoles
@@ -14,7 +14,12 @@ from ..dependencies.auth import get_current_user
 
 router = APIRouter()
 
-@router.post(
+def get_user_usecase(db: AsyncSession = Depends(db.get_db)):
+    repo = UserRepository(db)
+    return UserUseCase(repo)
+
+
+@router.get(
     "/", 
     response_model=UserPaginationList, 
     dependencies=[Depends(require_roles(["admin"]))],
@@ -23,33 +28,25 @@ router = APIRouter()
 # @cache(expire=3600, namespace="get_all_products_list", key_builder=list_cache_key_builder)
 async def get_all(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, le=20),
+    limit: int = Query(20, le=100),
     columns: Optional[str] = None,
-    search: Optional[str] = None,
+    filter: Optional[str] = None,
     sort: Optional[str] = "created_at",
-    db: AsyncSession = Depends(db.get_db)
+    use_case: UserUseCase = Depends(get_user_usecase),
 ):
-    repo = UserRepository(db)
-    use_case = UserUseCase(repo)
-    
-    skip = max((page - 1) * limit, 0)
-    
-    result = await use_case.get_all(skip, limit, columns, search, sort)
-    
-    return result  
+    return await use_case.get_all(page, limit, columns, filter, sort) 
 
 
 @router.get(
-    "/{id}", 
+    "/{user_id}", 
     response_model=UserRead, 
     dependencies=[Depends(require_roles(["admin", "tenant", "landlord", "agent"]))],
     status_code=status.HTTP_200_OK
 )
-async def get_by_id(id: str, db: AsyncSession = Depends(db.get_db)):
-    repo = UserRepository(db)
-    use_case = UserUseCase(repo)
-    user = await use_case.get_by_id(id)
-    return user
+async def get_by_id(
+    user_id: str, use_case: UserUseCase = Depends(get_user_usecase),
+):
+    return await use_case.get_by_id(user_id)
 
 
 @router.get(
@@ -58,11 +55,10 @@ async def get_by_id(id: str, db: AsyncSession = Depends(db.get_db)):
     dependencies=[Depends(require_roles(["admin"]))],
     status_code=status.HTTP_200_OK
 )
-async def get_by_email(email: str, db: AsyncSession = Depends(db.get_db)):
-    repo = UserRepository(db)
-    use_case = UserUseCase(repo)
-    user = await use_case.get_by_email(email)
-    return user
+async def get_by_email(
+    email: str, use_case: UserUseCase = Depends(get_user_usecase),
+):
+    return await use_case.get_by_email(email)
 
 
 @router.get(
@@ -71,38 +67,42 @@ async def get_by_email(email: str, db: AsyncSession = Depends(db.get_db)):
     dependencies=[Depends(require_roles(["admin"]))],
     status_code=status.HTTP_200_OK
 )
-async def get_by_username(username: str, db: AsyncSession = Depends(db.get_db)):
-    repo = UserRepository(db)
-    use_case = UserUseCase(repo)
-    user = await use_case.get_by_username(username)
-    return user
+async def get_by_username(
+    username: str,  use_case: UserUseCase = Depends(get_user_usecase),
+):
+    return await use_case.get_by_username(username)
 
 
-@router.post(
-    "/role/assign", 
+@router.patch(
+    "/{user_id}",
+    response_model=UserRead,
+    dependencies=[Depends(require_roles(["admin"]))],
+    status_code=status.HTTP_201_CREATED
+)
+async def update_user(
+    user_id: int, payload: UserUpdate, use_case: UserUseCase = Depends(get_user_usecase)
+):
+    return await use_case.update(user_id, payload)
+
+
+@router.patch(
+    "/{user_id}/role", 
     response_model=UserRead, 
     dependencies=[Depends(require_roles(["admin"]))],
     status_code=status.HTTP_201_CREATED
 )
 async def assign_role(
-    role: UserRoles, 
-    db: AsyncSession = Depends(db.get_db), 
-    user=Depends(get_current_user)
+    user_id: str, role: UserRoles, use_case: UserUseCase = Depends(get_user_usecase),
 ):
-    repo = UserRepository(db)
-    use_case = UserUseCase(repo)
-    user = await use_case.assign_role(user.id, role)
-    return user
+    return await use_case.assign_role(user_id, role)
 
 
 @router.delete(
-    "/{id}", 
-    response_model=UserRead, 
+    "/{user_id}", 
     dependencies=[Depends(require_roles(["admin"]))],
-    status_code=status.HTTP_404_NOT_FOUND
+    status_code=status.HTTP_204_NO_CONTENT
 )
-async def soft_delete(id: str, db: AsyncSession = Depends(db.get_db)):
-    repo = UserRepository(db)
-    use_case = UserUseCase(repo)
-    user = await use_case.soft_delete(id)
-    return user
+async def soft_delete(
+    user_id: str, use_case: UserUseCase = Depends(get_user_usecase),
+):
+    return await use_case.delete(user_id)

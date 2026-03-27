@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, Enum as SqlEnum, ForeignKe
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import uuid
-from ..domain.enums import landlord_enum, agent_enum, user_enum, campaign_enum, tenant_enum, house_enum, booking_enum
+from ..domain.enums import landlord_enum, agent_enum, user_enum, campaign_enum, tenant_enum, house_enum, booking_enum, entity_enum
 from ..infrastructure.db.database import db
 
 Base = db.Base
@@ -190,3 +190,43 @@ class BookingModel(Base):
     deleted_at = Column(DateTime(timezone=True))
     
     property = relationship("PropertyModel")
+    tenant = relationship("TenantModel")
+    
+    
+class FeatureModel(Base):
+    __tablename__ = "features"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(Text)
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+    
+    entity = relationship("EntityModel")
+    
+    
+class EntityModel(Base):
+    __tablename__ = "entities"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+    email = Column(String(30), nullable=False)
+    currency = Column(
+        SqlEnum(
+            entity_enum.CurrencyEnum,
+            name="currency_enum",
+            native_enum=True,   # REQUIRED for MySQL
+            validate_strings=True
+        ),
+        nullable=True
+    )
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
