@@ -6,6 +6,7 @@ TCreate = TypeVar("TCreate")
 TUpdate = TypeVar("TUpdate")
 
 class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
+    
     def __init__(self, repo):
         self.repo = repo
 

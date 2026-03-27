@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
-from ...domain.entities.user_entity import UserUpdate
-from ...domain.enums.user_enum import UserRoles
-from ...domain.usecases.base_usecase import BaseUseCase
+from ..entities.user_entity import UserUpdate
+from ..enums.user_enum import UserRoles
+from .base_usecase import BaseUseCase
 
 
 class UserUseCase(BaseUseCase):

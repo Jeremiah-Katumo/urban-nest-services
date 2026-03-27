@@ -22,7 +22,7 @@ def get_user_usecase(db: AsyncSession = Depends(db.get_db)):
 @router.get(
     "/", 
     response_model=UserPaginationList, 
-    dependencies=[Depends(require_roles(["admin"]))],
+    dependencies=[Depends(require_roles(["super_admin", "admin", "manager"]))],
     status_code=status.HTTP_200_OK
 )
 @cache(expire=3600, namespace="users:list", key_builder=list_cache_key_builder)
@@ -30,17 +30,17 @@ async def get_all(
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
     columns: Optional[str] = None,
-    filter: Optional[str] = None,
+    search_filter: Optional[str] = None,
     sort: Optional[str] = "created_at",
     use_case: UserUseCase = Depends(get_user_usecase),
 ):
-    return await use_case.get_all(page, limit, columns, filter, sort) 
+    return await use_case.get_all(page, limit, columns, search_filter, sort) 
 
 
 @router.get(
     "/{user_id}", 
     response_model=UserRead, 
-    dependencies=[Depends(require_roles(["admin", "tenant", "landlord", "agent"]))],
+    dependencies=[Depends(require_roles(["super_admin", "admin", "tenant", "landlord", "agent"]))],
     status_code=status.HTTP_200_OK
 )
 async def get_by_id(
@@ -52,7 +52,7 @@ async def get_by_id(
 @router.get(
     "/{email}/email", 
     response_model=UserRead, 
-    dependencies=[Depends(require_roles(["admin"]))],
+    dependencies=[Depends(require_roles(["super_admin", "admin", "manager"]))],
     status_code=status.HTTP_200_OK
 )
 async def get_by_email(
@@ -64,7 +64,7 @@ async def get_by_email(
 @router.get(
     "/{username}/user", 
     response_model=UserRead, 
-    dependencies=[Depends(require_roles(["admin"]))],
+    dependencies=[Depends(require_roles(["super_admin", "admin", "manager"]))],
     status_code=status.HTTP_200_OK
 )
 async def get_by_username(
@@ -76,7 +76,7 @@ async def get_by_username(
 @router.patch(
     "/{user_id}",
     response_model=UserRead,
-    dependencies=[Depends(require_roles(["admin"]))],
+    dependencies=[Depends(require_roles(["super_admin", "admin", "manager"]))],
     status_code=status.HTTP_201_CREATED
 )
 async def update_user(
@@ -91,7 +91,7 @@ async def update_user(
 @router.patch(
     "/{user_id}/role", 
     response_model=UserRead, 
-    dependencies=[Depends(require_roles(["admin"]))],
+    dependencies=[Depends(require_roles(["super_admin", "admin", "manager"]))],
     status_code=status.HTTP_201_CREATED
 )
 async def assign_role(
@@ -102,7 +102,7 @@ async def assign_role(
 
 @router.delete(
     "/{user_id}", 
-    dependencies=[Depends(require_roles(["admin"]))],
+    dependencies=[Depends(require_roles(["super_admin", "admin", "manager"]))],
     status_code=status.HTTP_204_NO_CONTENT
 )
 async def soft_delete(

@@ -10,6 +10,7 @@ from ...infrastructure.repositories.base_repository import BaseRepository
 
 
 class UserRepository(BaseRepository[UserModel], IUser):
+    
     def __init__(self, db_session: AsyncSession):
         super().__init__(db_session, UserModel)
 

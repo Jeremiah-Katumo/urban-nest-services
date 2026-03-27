@@ -8,6 +8,7 @@ from ...core import query_manager
 TModel = TypeVar("TModel")
 
 class BaseRepository(Generic[TModel]):
+    
     def __init__(self, db: AsyncSession, model: Type[TModel]):
         self.db = db
         self.model = model
