@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON
-from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON
 from ..domain.enums import landlord_enum, agent_enum, user_enum, campaign_enum, tenant_enum, house_enum, booking_enum, entity_enum
 from ..infrastructure.db.database import db
 
