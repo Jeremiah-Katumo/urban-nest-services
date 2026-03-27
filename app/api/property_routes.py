@@ -69,7 +69,7 @@ async def get_all(
     dependencies=[Depends(require_roles(["super_admin", "admin", "manager", "landlord"]))],
     status_code=status.HTTP_201_CREATED
 )
-async def update_user(
+async def update_property(
     property_id: str, payload: PropertyUpdate, use_case: PropertyUseCase = Depends(get_property_usecase)
 ):
     updated = await use_case.update(property_id, payload)
