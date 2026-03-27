@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON
+from sqlalchemy import Table, Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON
 from ..domain.enums import landlord_enum, agent_enum, user_enum, campaign_enum, tenant_enum, house_enum, booking_enum, entity_enum
 from ..infrastructure.db.database import db
 
@@ -12,6 +12,21 @@ def generate_uuid():
 
 class SoftDeleteMixin:
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+    
+    
+role_permissions = Table(
+    "role_permissions",
+    Base.metadata,
+    Column("role_id", String(36), ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+    Column("permission_id", String(36), ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
+)
+
+user_roles = Table(
+    "user_roles",
+    Base.metadata,
+    Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("role_id", String(36), ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class TenantModel(Base):
@@ -121,6 +136,7 @@ class UserModel(Base):
     tenant = relationship("TenantModel", backref="user", uselist=False)
     landlord = relationship("LandlordModel", backref="user", uselist=False)
     agent = relationship("AgentModel", backref="user", uselist=False)
+    roles = relationship('RoleModel', secondary=user_roles, back_populates="users", lazy="selectin")  # many-to-many
 
 
 class PropertyModel(Base):
@@ -207,6 +223,7 @@ class FeatureModel(Base):
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
+    permissions = relationship("PermissionModel", back_populates="feature")
     
     
 class EntityModel(Base):
@@ -230,3 +247,41 @@ class EntityModel(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+    
+    
+class PermissionModel(Base):
+    __tablename__ = "permissions"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(50), unique=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    feature_id = Column(String(36), ForeignKey("features.id", ondelete="CASCADE"))
+
+    feature = relationship("FeatureModel", back_populates="permissions")
+    roles = relationship("RoleModel", secondary=role_permissions, back_populates="permissions", lazy="selectin")
+    
+    def __repr__(self): 
+        return f"<Permission id={self.id} name={self.name}>"
+
+
+class RoleModel(Base):
+    __tablename__ = "roles"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), unique=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    
+    permissions = relationship("PermissionModel", secondary=role_permissions, back_populates="roles", lazy="selectin")
+    users = relationship("UserModel", secondary=user_roles, back_populates="roles", lazy="selectin")
+    
+    def __repr__(self):
+        return f"<Role id={self.id} name={self.name}>"
+    
