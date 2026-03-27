@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
-from ..entities.user_entity import UserUpdate, UserRead
-from ..enums.user_enum import UserRoles
+from ..entities.property_entity import PropertyUpdate, PropertyRead, PropertyCreate
 
 
-class IUser(ABC):    
+class IProperty(ABC):
     @abstractmethod
-    async def get_by_id(self, id: str) -> UserRead:
+    async def create(self, data: PropertyCreate):
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def get_by_id(self, id: str) -> PropertyRead:
         raise NotImplementedError
     
     @abstractmethod
@@ -20,19 +23,15 @@ class IUser(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    async def get_by_email(self, email: str) -> UserRead:
+    async def update(self, id: str, data: PropertyUpdate):
         raise NotImplementedError
     
     @abstractmethod
-    async def get_by_username(self, username: str) -> UserRead:
+    async def assign_landlord(self, property_id: str, landlord_id: str):
         raise NotImplementedError
     
     @abstractmethod
-    async def update(self, id: str, data: UserUpdate):
-        raise NotImplementedError
-    
-    @abstractmethod
-    async def assign_role(self, user_id: str, role: UserRoles) -> UserRead:
+    async def assign_agent(self, property_id: str, agent_id):
         raise NotImplementedError
     
     @abstractmethod
