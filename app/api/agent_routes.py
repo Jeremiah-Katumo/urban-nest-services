@@ -20,19 +20,6 @@ def get_agent_usecase(db: AsyncSession = Depends(db.get_db)):
     return AgentUseCase(repo)
 
 
-@router.post(
-    "/",
-    response_model=AgentRead,
-    dependencies=[Depends(require_roles(["super_admin", "admin", "manager", "landlord"]))],
-    status_code=status.HTTP_201_CREATED
-)
-async def create_agent(
-    data: AgentCreate,
-    use_case: AgentUseCase = Depends(get_agent_usecase)
-):
-    return await use_case.create(data)
-
-
 @router.get(
     "/{agent_id}",
     response_model=AgentRead, 
