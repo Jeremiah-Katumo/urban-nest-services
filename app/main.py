@@ -4,7 +4,7 @@ import redis.asyncio as redis
 from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi_cache import FastAPICache
 from .api import (
-    auth_routes, user_routes
+    auth_routes, user_routes, property_routes
 )
 from .infrastructure.db.database import db
 
@@ -30,3 +30,4 @@ def home():
 
 app.include_router(auth_routes.router, prefix="/auth", tags=["Auth"])
 app.include_router(user_routes.router, prefix="/users", tags=["User"])
+app.include_router(property_routes.router, prefix="/properties", tags=["Property"])

@@ -1,9 +1,11 @@
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession 
 from sqlalchemy import select 
 from datetime import datetime, timezone
 from .base_repository import BaseRepository
 from ...models.models import PropertyModel 
 from ...domain.interfaces.property_interface import IProperty
+from ...domain.entities.property_entity import PropertyCreate
 
 
 class PropertyRepository(BaseRepository[PropertyModel], IProperty):
@@ -36,4 +38,3 @@ class PropertyRepository(BaseRepository[PropertyModel], IProperty):
 
     async def assign_agent(self, property_id: str, agent_id: str):
         return await self._assign_field(property_id, "agent_id", agent_id)
-    

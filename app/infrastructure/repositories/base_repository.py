@@ -40,10 +40,22 @@ class BaseRepository(Generic[TModel]):
         
         return await query_manager.QueryManager.build_response(users, page, limit, total)
     
-    async def add(self, obj: TModel) -> TModel:
+    async def create(self, obj) -> TModel:
+        # Convert dict/Pydantic → ORM model
+        if not isinstance(obj, self.model):
+            if isinstance(obj, dict):
+                obj = self.model(**obj)
+            elif hasattr(obj, "model_dump"):
+                obj = self.model(**obj.model_dump())
+            elif hasattr(obj, "dict"):
+                obj = self.model(**obj.dict())
+            else:
+                raise TypeError("Invalid type for create()")
+
         self.db.add(obj)
-        await self.db.flush()
-        
+        await self.db.commit()
+        await self.db.refresh(obj)
+
         return obj
     
     async def update(self, entity_id: str, data: dict) -> TModel:

@@ -58,11 +58,11 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
         return await self.repo.get_all(page, limit, columns, search_filter, sort)
     
     async def create(self, data: TCreate) -> TModel:
-        payload = data.dict() if hasattr(data, "dict") else data
+        payload = data.model_dump() if hasattr(data, "model_dump") else data
         
-        payload = await self.before_create(data)
+        payload = await self.before_create(payload)
         
-        instance = await self.repo.add(payload)
+        instance = await self.repo.create(payload)
         
         return await self.after_create(instance)
     
