@@ -5,7 +5,7 @@ from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi_cache import FastAPICache
 from .api import (
     auth_routes, user_routes, property_routes, agent_routes,
-    landlord_routes, tenant_routes
+    landlord_routes, tenant_routes, permission_routes, role_routes,
 )
 from .infrastructure.db.database import db
 
@@ -32,3 +32,5 @@ app.include_router(landlord_routes.router, prefix="/landlords", tags=["Landlord"
 app.include_router(agent_routes.router, prefix="/agents", tags=["Agent"])
 app.include_router(property_routes.router, prefix="/properties", tags=["Property"])
 app.include_router(tenant_routes.router, prefix="/tenants", tags=["Tenant"])
+app.include_router(role_routes.router, prefix="/roles", tags=["Role"])
+app.include_router(permission_routes.router, prefix="/permissions", tags=["Permission"])
