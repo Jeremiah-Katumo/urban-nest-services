@@ -29,6 +29,62 @@ user_roles = Table(
 )
 
 
+class UserPermissionModel(Base):
+    __tablename__ = "user_permissions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+    permission_id = Column(String(36), ForeignKey("permissions.id", ondelete="CASCADE"))
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    permission = relationship("PermissionModel")
+
+
+class PermissionModel(Base):
+    __tablename__ = "permissions"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(50), unique=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    feature = relationship("FeatureModel", back_populates="permissions")
+    roles = relationship("RoleModel", secondary=role_permissions, back_populates="permissions", lazy="selectin")
+    feature_id = Column(String(36), ForeignKey("features.id", ondelete="CASCADE"))
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
+    
+    entity = relationship("EntityModel")
+    
+    def __repr__(self): 
+        return f"<Permission id={self.id} name={self.name}>"
+
+
+class RoleModel(Base):
+    __tablename__ = "roles"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(100), unique=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    permissions = relationship("PermissionModel", secondary=role_permissions, back_populates="roles", lazy="selectin")
+    users = relationship("UserModel", secondary=user_roles, back_populates="roles", lazy="selectin")
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
+    
+    entity = relationship("EntityModel")
+    
+    def __repr__(self):
+        return f"<Role id={self.id} name={self.name}>"
+
+
 class TenantModel(Base):
     __tablename__ = "tenants"
 
@@ -46,12 +102,15 @@ class TenantModel(Base):
         default=user_enum.UserRoles.CUSTOMER
     )
     
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
-
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
+    
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+    
+    entity = relationship("EntityModel")
 
 
 class LandlordModel(Base):
@@ -70,15 +129,17 @@ class LandlordModel(Base):
         nullable=False,
         default=user_enum.UserRoles.CUSTOMER
     )
-    
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
     
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+    
     properties = relationship("PropertyModel", back_populates="landlord")
+    entity = relationship("EntityModel")
     
     
 class AgentModel(Base):
@@ -97,14 +158,17 @@ class AgentModel(Base):
         nullable=False,
         default=user_enum.UserRoles.CUSTOMER
     )
-    
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
-
+    
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+    
+    entity = relationship("EntityModel")
+    
 
 class UserModel(Base):
     __tablename__ = "users"
@@ -133,11 +197,15 @@ class UserModel(Base):
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
     
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+    tenant_id = Column(String(36), ForeignKey("tenants.id"))
+    
     tenant = relationship("TenantModel", backref="user", uselist=False)
     landlord = relationship("LandlordModel", backref="user", uselist=False)
     agent = relationship("AgentModel", backref="user", uselist=False)
     roles = relationship('RoleModel', secondary=user_roles, back_populates="users", lazy="selectin")  # many-to-many
-
+    entity = relationship("EntityModel")
+    
 
 class PropertyModel(Base):
     __tablename__ = "properties"
@@ -162,8 +230,10 @@ class PropertyModel(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"))
 
     landlord = relationship("LandlordModel", back_populates="properties")
+    entity = relationship("EntityModel")
 
 
 class CampaignModel(Base):
@@ -184,6 +254,9 @@ class CampaignModel(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"))
+    
+    entity = relationship("EntityModel")
     
     
 class BookingModel(Base):
@@ -204,9 +277,11 @@ class BookingModel(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
+    feature_id = Column(String(36), ForeignKey("features.id", ondelete="CASCADE"))
     
     property = relationship("PropertyModel")
     tenant = relationship("TenantModel")
+    entity = relationship("EntityModel")
     
     
 class FeatureModel(Base):
@@ -244,46 +319,12 @@ class EntityModel(Base):
         nullable=True
     )
     status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
-    
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
+    entity = relationship("EntityModel")
     
-class PermissionModel(Base):
-    __tablename__ = "permissions"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(50), unique=True)
-    description = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
-    feature_id = Column(String(36), ForeignKey("features.id", ondelete="CASCADE"))
-
-    feature = relationship("FeatureModel", back_populates="permissions")
-    roles = relationship("RoleModel", secondary=role_permissions, back_populates="permissions", lazy="selectin")
-    
-    def __repr__(self): 
-        return f"<Permission id={self.id} name={self.name}>"
-
-
-class RoleModel(Base):
-    __tablename__ = "roles"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(100), unique=True)
-    description = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
-    
-    permissions = relationship("PermissionModel", secondary=role_permissions, back_populates="roles", lazy="selectin")
-    users = relationship("UserModel", secondary=user_roles, back_populates="roles", lazy="selectin")
-    
-    def __repr__(self):
-        return f"<Role id={self.id} name={self.name}>"
     
