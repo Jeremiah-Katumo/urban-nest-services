@@ -1,10 +1,7 @@
-import uuid
 from fastapi import Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from .auth import get_current_user
 from ..models.models import PermissionModel, UserPermissionModel
-from ..infrastructure.db.database import db
 from ..redis.redis_client import redis_client
 
 
