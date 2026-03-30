@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pydantic import StrictBool
 from ..entities.permission_entity import PermissionCreate, PermissionRead, PermissionUpdate
 
 class IPermission(ABC):
@@ -35,4 +36,8 @@ class IPermission(ABC):
     
     @abstractmethod
     async def assign_permission_to_user(self, user_id: str, permission_id: str):
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def user_has_permission(self, user_id: str, permission_name: str) -> StrictBool:
         raise NotImplementedError

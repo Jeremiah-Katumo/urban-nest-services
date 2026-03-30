@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi_cache import FastAPICache
 from fastapi_cache.decorator import cache
 from typing import Optional
+from pydantic import StrictBool
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.entities.permission_entity import (
     PermissionCreate, PermissionRead, PermissionUpdate, PermissionPaginationList
@@ -46,7 +47,7 @@ async def get_by_id(
 
 @router.get(
     "/", 
-    response_model=PermissionRead, 
+    response_model=PermissionPaginationList, 
     dependencies=[Depends(require_roles(["admin", "tenant", "customer", "landlord", "agent", "manager", "super_admin"]))],
     status_code=status.HTTP_200_OK
 )
@@ -94,7 +95,21 @@ async def assign_permission_to_user(
     use_case: PermissionUseCase = Depends(get_permission_usecase),
     current_user=Depends(require_permission("assign_permissions"))
 ):
-    return await use_case.assign_permission_to_user(user_id, permission_id)    
+    return await use_case.assign_permission_to_user(user_id, permission_id) 
+
+
+@router.get(
+    "/{user_id}/has_permission/{permission_name}",
+    response_model=StrictBool,
+    dependencies=[Depends(require_roles(["super_admin", "admin", "tenant", "landlord", "agent", "manager"]))],
+    status_code=status.HTTP_200_OK
+)
+async def user_has_permission(
+    user_id: str,
+    permission_name: str,
+    use_case: PermissionUseCase = Depends(get_permission_usecase),
+):
+    return await use_case.user_has_permission(user_id, permission_name)
 
 
 @router.delete(

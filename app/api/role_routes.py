@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, Query, status
 from fastapi_cache import FastAPICache
 from fastapi_cache.decorator import cache
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.entities.role_entity import (
     RoleCreate, RoleRead, RoleUpdate, RolePaginationList
 )
+from ..domain.entities.user_entity import UserRead
 from ..infrastructure.db.database import db
 from ..domain.usecases.role_usecase import RoleUseCase
 from ..infrastructure.repositories.role_repository import RoleRepository
@@ -29,7 +30,22 @@ async def create_role(
     payload: RoleCreate,
     use_case: RoleUseCase = Depends(get_role_usecase),
 ):
-    return await use_case.create(payload)    
+    return await use_case.create(payload) 
+
+
+@router.post(
+    "/with_permissions",
+    response_model=RoleRead,
+    status_code=status.HTTP_201_CREATED,
+    # dependencies=[Depends(require_permission("create_roles"))]
+    dependencies=[Depends(require_roles(["super_admin", "admin"]))]
+)
+async def create_role_with_permissions(
+    payload: RoleCreate,
+    permission_list: List[str] = Query(..., description="List of permissions to assign to the role"),
+    use_case: RoleUseCase = Depends(get_role_usecase)
+):
+    return await use_case.create_role_with_permissions(payload, permission_list)
 
 
 @router.get(
@@ -46,7 +62,7 @@ async def get_by_id(
 
 @router.get(
     "/", 
-    response_model=RoleRead, 
+    response_model=RolePaginationList, 
     dependencies=[Depends(require_roles(["admin", "tenant", "customer", "landlord", "agent", "manager", "super_admin"]))],
     status_code=status.HTTP_200_OK
 )
@@ -77,12 +93,15 @@ async def update_role(
     return updated
 
 
-@router.post("/users/{user_id}/roles/{role_id}")
+@router.post(
+    "/users/{user_id}/roles/{role_id}",
+    response_model=UserRead,
+    dependencies=[Depends(require_roles(["super_admin", "admin"]))]
+)
 async def assign_role_to_user(
     user_id: str,
     role_id: str,
     use_case: RoleUseCase = Depends(get_role_usecase),
-    current_user=Depends(require_permission("assign_roles"))
 ):
     return await use_case.assign_role_to_user(user_id, role_id)
     

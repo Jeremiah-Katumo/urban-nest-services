@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import relationship
-from sqlalchemy import Table, Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON
+from sqlalchemy import Table, Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON, Boolean, UniqueConstraint
 from ..domain.enums import user_enum, campaign_enum, house_enum, booking_enum, entity_enum, base_enum
 from ..infrastructure.db.database import db
 
@@ -107,10 +107,10 @@ class TenantModel(Base):
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
     
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
+    users = relationship("UserModel", back_populates="tenant")
 
 
 class LandlordModel(Base):
@@ -135,11 +135,11 @@ class LandlordModel(Base):
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
     
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     properties = relationship("PropertyModel", back_populates="landlord")
     entity = relationship("EntityModel")
+    user = relationship("UserModel", back_populates="landlord")
     
     
 class AgentModel(Base):
@@ -164,10 +164,10 @@ class AgentModel(Base):
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
     
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
+    user = relationship("UserModel", back_populates="agent")
     
 
 class UserModel(Base):
@@ -198,11 +198,13 @@ class UserModel(Base):
     deleted_at = Column(DateTime(timezone=True))
     
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
-    tenant_id = Column(String(36), ForeignKey("tenants.id"))
+    tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
+    landlord_id = Column(String(36), ForeignKey("landlords.id", ondelete="CASCADE"), nullable=True)
+    agent_id = Column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), nullable=True)
     
-    tenant = relationship("TenantModel", backref="user", uselist=False)
-    landlord = relationship("LandlordModel", backref="user", uselist=False)
-    agent = relationship("AgentModel", backref="user", uselist=False)
+    tenant = relationship("TenantModel", back_populates="users")
+    landlord = relationship("LandlordModel", back_populates="user", uselist=False)
+    agent = relationship("AgentModel", back_populates="user", uselist=False)
     roles = relationship('RoleModel', secondary=user_roles, back_populates="users", lazy="selectin")  # many-to-many
     entity = relationship("EntityModel")
     
@@ -278,10 +280,11 @@ class BookingModel(Base):
                         onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True))
     feature_id = Column(String(36), ForeignKey("features.id", ondelete="CASCADE"))
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     property = relationship("PropertyModel")
     tenant = relationship("TenantModel")
-    entity = relationship("EntityModel")
+    entity = relationship("EntityModel", back_populates="bookings")
     
     
 class FeatureModel(Base):
@@ -323,8 +326,45 @@ class EntityModel(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
-    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+
+    bookings = relationship("BookingModel", back_populates="entity")    
     
-    entity = relationship("EntityModel")
     
+class FieldModel(Base):
+    __tablename__ = "fields"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    module = Column(String(64), nullable=False, index=True)
+    feature_id = Column(String(36), ForeignKey("features.id"), nullable=True)
+    name = Column(String(128), nullable=False)
+    key = Column(String(100), nullable=False)  # slug, unique per module
+    type = Column(String(32), nullable=False)  # 'text','number','boolean','date','select'
+    options = Column(JSON, nullable=True)
+    required = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    values = relationship("CustomValueModel", back_populates="field")
+
+
+class ValueModel(Base):
+    __tablename__ = "values"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    module = Column(String(64), nullable=False, index=True)
+    entity_id = Column(String(64), nullable=False)  # e.g., user id or product id
+    field_id = Column(String(36), ForeignKey("fields.id"))
+    value = Column(JSON, nullable=True)  # store typed value(s) as JSON
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("field_id", "entity_id"),
+    )
+
+    field = relationship("CustomFieldModel", back_populates="values")
     
