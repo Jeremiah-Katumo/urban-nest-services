@@ -6,6 +6,7 @@ from fastapi_cache import FastAPICache
 from .api import (
     auth_routes, user_routes, property_routes, agent_routes,
     landlord_routes, tenant_routes, permission_routes, role_routes,
+    field_routes, value_routes
 )
 from .infrastructure.db.database import db
 
@@ -34,3 +35,5 @@ app.include_router(property_routes.router, prefix="/properties", tags=["Property
 app.include_router(tenant_routes.router, prefix="/tenants", tags=["Tenant"])
 app.include_router(role_routes.router, prefix="/roles", tags=["Role"])
 app.include_router(permission_routes.router, prefix="/permissions", tags=["Permission"])
+app.include_router(field_routes.router, prefix="/fields", tags=["Field"])
+app.include_router(value_routes.router, prefix="/values", tags=["Value"])

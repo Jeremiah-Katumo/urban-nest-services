@@ -38,7 +38,7 @@ async def get_by_id(
     dependencies=[Depends(require_roles(["admin", "tenant", "customer", "landlord", "agent", "manager", "super_admin"]))],
     status_code=status.HTTP_200_OK
 )
-@cache(expire=3600, namespace="properties:list", key_builder=list_cache_key_builder)
+@cache(expire=3600, namespace="tenants:list", key_builder=list_cache_key_builder)
 async def get_all(
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
@@ -60,7 +60,7 @@ async def update_tenant(
     tenant_id: str, payload: TenantUpdate, use_case: TenantUseCase = Depends(get_tenant_usecase)
 ):
     updated = await use_case.update(tenant_id, payload)
-    await FastAPICache.clear(namespace="users:list")
+    await FastAPICache.clear(namespace="tenants:list")
     
     return updated
 
