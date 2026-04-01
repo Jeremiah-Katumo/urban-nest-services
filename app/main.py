@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 import redis.asyncio as redis
+from fastapi.middleware.cors import CORSMiddleware
 # from fastapi_cache.backends.redis import RedisBackend
 from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi_cache import FastAPICache
@@ -10,7 +11,7 @@ from .api import (
 )
 from .infrastructure.db.database import db
 
-app = FastAPI(root_path="/app/v1")
+app = FastAPI(root_path="/api/v1")
 
 # Development
 @app.on_event("startup")
@@ -22,6 +23,14 @@ async def startup():
 # async def startup():
 #     redis_client = redis.from_url("redis://localhost:6379")
 #     FastAPICache.init(RedisBackend(redis_client), prefix="fastapi-cache")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # or ["*"] for dev
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def home():

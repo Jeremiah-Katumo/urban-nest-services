@@ -17,6 +17,11 @@ class LoginSchema(BaseModel):
     password: str
 
 
+class ResetPassword(BaseModel):
+    user_id: str
+    password: str 
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

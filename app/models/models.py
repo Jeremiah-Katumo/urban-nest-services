@@ -346,7 +346,7 @@ class FieldModel(Base):
                         onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
-    values = relationship("CustomValueModel", back_populates="field")
+    values = relationship("ValueModel", back_populates="field")
 
 
 class ValueModel(Base):
@@ -366,5 +366,5 @@ class ValueModel(Base):
         UniqueConstraint("field_id", "entity_id"),
     )
 
-    field = relationship("CustomFieldModel", back_populates="values")
+    field = relationship("FieldModel", back_populates="values")
     
