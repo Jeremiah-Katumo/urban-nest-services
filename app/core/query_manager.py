@@ -2,6 +2,7 @@ import math
 from sqlalchemy import select, or_, func, desc, asc
 
 class QueryManager:
+    
     @staticmethod
     async def apply_columns(stmt, model, columns: str | None):
         if columns and columns != "all":

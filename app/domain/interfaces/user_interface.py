@@ -14,7 +14,7 @@ class IUser(ABC):
         page: int,
         limit: int,
         columns: str | None,
-        filter: str | None,
+        search_filter: str | None,
         sort: str | None,
     ):
         raise NotImplementedError
