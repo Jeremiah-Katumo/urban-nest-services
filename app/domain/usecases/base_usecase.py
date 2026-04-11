@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Optional, Any, Dict
+from typing import Generic, TypeVar, Optional, Dict
 from fastapi import HTTPException, status
 
 TModel = TypeVar("TModel")

@@ -1,8 +1,10 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from ..enums.landlord_enum import LandlordStatus
 from ..enums.user_enum import UserRoles
+from .property_entity import PropertyRead
+from .user_entity import UserRead
 
 
 class LandlordBase(BaseModel):
@@ -31,7 +33,10 @@ class LandlordRead(BaseModel):
     email: EmailStr
     status: Optional[LandlordStatus] = LandlordStatus.ACTIVE
     role: Optional[UserRoles] = UserRoles.CUSTOMER
-    user_id: Optional[str] 
+    entity_id: Optional[str] 
+    entity: Optional[Dict[str, str]]
+    properties: Optional[List[PropertyRead]]
+    user: Optional[UserRead]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     deleted_at: Optional[datetime]

@@ -11,3 +11,6 @@ class AuthUseCase:
     
     async def authenticate(self, email: str, password: str):
         return await self.repo.authenticate(email, password)
+
+    async def reset_password(self, user_id: str, password: str):
+        return await self.repo.reset_password(user_id, password)

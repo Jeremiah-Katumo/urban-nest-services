@@ -1,8 +1,8 @@
-"""add roles and permissions models
+"""update relationships in all users, agents, landlords and tenants
 
-Revision ID: 271730d7c2b7
-Revises: 72e79f13eaff
-Create Date: 2026-03-27 23:14:22.041371
+Revision ID: 960db35c0710
+Revises: 4b1f297faa6c
+Create Date: 2026-03-30 11:27:01.069909
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '271730d7c2b7'
-down_revision: Union[str, Sequence[str], None] = '72e79f13eaff'
+revision: str = '960db35c0710'
+down_revision: Union[str, Sequence[str], None] = '4b1f297faa6c'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

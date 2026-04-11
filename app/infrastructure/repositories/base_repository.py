@@ -1,17 +1,24 @@
 from fastapi import HTTPException, status
-from typing import Generic, Type, TypeVar, Sequence
+from typing import Generic, Type, TypeVar, List, Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime, timezone
 from ...core import query_manager
 
+
 TModel = TypeVar("TModel")
 
 class BaseRepository(Generic[TModel]):
     
-    def __init__(self, db: AsyncSession, model: Type[TModel]):
+    def __init__(
+        self, 
+        db: AsyncSession, 
+        model: Type[TModel], 
+        value_repo: Optional["ValueRepository"] = None
+    ):
         self.db = db
         self.model = model
+        self.value_repo = value_repo
         
     async def get_by_id(self, entity_id: str) -> TModel | None:
         result = await self.db.execute(
@@ -105,3 +112,53 @@ class BaseRepository(Generic[TModel]):
         
         return instance
         
+    async def create_with_custom_fields(self, obj, custom_fields: List[Dict] = None):
+        entity = await self.create(obj)
+
+        if custom_fields and self.value_repo:
+            for field in custom_fields:
+                await self.value_repo.create({
+                    "field_id": field["field_id"],
+                    "entity_id": entity.id,
+                    "module": self.model.__tablename__,
+                    "value": field["value"]
+                })
+
+        return entity
+
+    async def update_with_custom_fields(
+        self, 
+        entity_id: str, 
+        data: dict, 
+        custom_fields: List[Dict] = None
+    ) -> TModel:
+        
+        entity = await self.update(entity_id, data)
+
+        if custom_fields and self.value_repo:
+            existing_values = await self.value_repo.get_by_entity(
+                self.model.__tablename__, entity_id
+            )
+
+            existing_map = {value.field_id: value for value in existing_values}
+
+            for field in custom_fields:
+                if field["field_id"] in existing_map:
+                    await self.value_repo.update(
+                        existing_map[field["field_id"]].id,
+                        {"value": field["value"]}
+                    )
+                else:
+                    await self.value_repo.create({
+                        "module": self.model.__tablename__,
+                        "entity_id": entity_id,
+                        "field_id": field["field_id"],
+                        "value": field["value"]
+                    })
+
+        return entity
+
+    async def get_custom_fields(self, module: str, entity_id: str):
+        if not self.value_repo:
+            return []
+        return await self.value_repo.get_by_entity(module, entity_id)

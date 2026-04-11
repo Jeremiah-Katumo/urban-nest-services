@@ -1,8 +1,9 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from pydantic import StrictBool
 from .base_repository import BaseRepository
-from ...models.models import PermissionModel, RoleModel, UserPermissionModel
+from ...models.models import PermissionModel, RoleModel, UserPermissionModel, UserModel
 from ...domain.interfaces.permission_interface import IPermission
 
 
@@ -51,3 +52,26 @@ class PermissionRepository(BaseRepository[PermissionModel], IPermission):
         await self.db.commit()
 
         return user_perm
+    
+    async def user_has_permission(self, user_id: str, permission_name: str) -> StrictBool:
+        user = await self.db.execute(
+            select(UserModel).where(
+                UserModel.id == user_id,
+                UserModel.deleted_at.is_(None)
+            )
+        )
+        user = user.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        user_permissions = {
+            perm.name
+            for role in user.roles
+            for perm in role.permissions
+        }
+
+        return True if permission_name in user_permissions else False
