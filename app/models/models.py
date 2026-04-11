@@ -1,8 +1,14 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import relationship
-from sqlalchemy import Table, Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON, Boolean, UniqueConstraint
-from ..domain.enums import user_enum, campaign_enum, house_enum, booking_enum, entity_enum, base_enum
+from sqlalchemy import (
+    Table, Column, Integer, String, Text, Enum as SqlEnum, 
+    ForeignKey, DateTime, JSON, Boolean, UniqueConstraint, Float
+)
+from ..domain.enums import (
+    user_enum, campaign_enum, house_enum, booking_enum, 
+    entity_enum, base_enum, transporter_enum
+)
 from ..infrastructure.db.database import db
 
 Base = db.Base
@@ -169,6 +175,44 @@ class AgentModel(Base):
     entity = relationship("EntityModel")
     user = relationship("UserModel", back_populates="agent")
     
+    
+class TransporterModel(Base):
+    __tablename__ = "transporters"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+
+    username = Column(String(100), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+
+    email = Column(String(50), unique=True, nullable=False, index=True)
+    phone = Column(String(20), nullable=False)
+    avatar = Column(String(30), nullable=True)
+    password = Column(String(255), nullable=False)
+    
+    base_price = Column(Float, nullable=False, default=50)
+    price_per_km = Column(Float, nullable=False, default=2)
+    rating = Column(Float, nullable=False, default=4.7)
+    driver_status = Column(SqlEnum(transporter_enum.DriverStatus), nullable=False, default=transporter_enum.DriverStatus.AVAILABLE)
+
+    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+
+    role = Column(
+        SqlEnum(user_enum.UserRoles),
+        nullable=False,
+        default=user_enum.UserRoles.CUSTOMER
+    )
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime(timezone=True))
+    
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
+    
+    entity = relationship("EntityModel")
+    user = relationship("UserModel", back_populates="agent")
+    
 
 class UserModel(Base):
     __tablename__ = "users"
@@ -205,6 +249,7 @@ class UserModel(Base):
     tenant = relationship("TenantModel", back_populates="users")
     landlord = relationship("LandlordModel", back_populates="user", uselist=False)
     agent = relationship("AgentModel", back_populates="user", uselist=False)
+    transporter = relationship("TransporterModel", back_populates="user")
     roles = relationship('RoleModel', secondary=user_roles, back_populates="users", lazy="selectin")  # many-to-many
     entity = relationship("EntityModel")
     
@@ -368,3 +413,20 @@ class ValueModel(Base):
 
     field = relationship("FieldModel", back_populates="values")
     
+    
+class SubscriptionModel(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(255), nullable=False)
+    price = Column(Integer, nullable=False)
+    interval = Column(SqlEnum(transporter_enum.IntervalEnum), nullable=False)
+    role = Column(SqlEnum(user_enum.UserRoles), nullable=False)
+    description = Column(Text)
+    features = Column(Text)  # JSON string
+    is_deleted = Column(Boolean, default=False)
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
