@@ -211,7 +211,7 @@ class TransporterModel(Base):
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
-    user = relationship("UserModel", back_populates="agent")
+    user = relationship("UserModel", back_populates="transporter")
     
 
 class UserModel(Base):
@@ -245,11 +245,12 @@ class UserModel(Base):
     tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
     landlord_id = Column(String(36), ForeignKey("landlords.id", ondelete="CASCADE"), nullable=True)
     agent_id = Column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), nullable=True)
+    transporter_id = Column(String(36), ForeignKey("transporters.id", ondelete="CASCADE"), nullable=True)
     
     tenant = relationship("TenantModel", back_populates="users")
     landlord = relationship("LandlordModel", back_populates="user", uselist=False)
     agent = relationship("AgentModel", back_populates="user", uselist=False)
-    transporter = relationship("TransporterModel", back_populates="user")
+    transporter = relationship("TransporterModel", back_populates="user", uselist=False)
     roles = relationship('RoleModel', secondary=user_roles, back_populates="users", lazy="selectin")  # many-to-many
     entity = relationship("EntityModel")
     
@@ -435,7 +436,7 @@ class SubscriptionModel(Base):
 class SupportTicketModel(Base):
     __tablename__ = "support_tickets"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     role = Column(SqlEnum(user_enum.UserRoles), nullable=False)
 

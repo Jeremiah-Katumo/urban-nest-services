@@ -51,8 +51,11 @@ class AuthRepository(IAuth):
         )
         user = result.scalar_one_or_none()
 
-        if not user or not verify_password(password, user.password):
-            return None
+        if not user:
+            raise HTTPException(404, "User not found")
+        
+        if not verify_password(password, user.password):
+            raise HTTPException(401, "Authentication Error!")
 
         return user
 
