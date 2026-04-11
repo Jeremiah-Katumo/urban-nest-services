@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-import redis.asyncio as redis
 from fastapi.middleware.cors import CORSMiddleware
 # from fastapi_cache.backends.redis import RedisBackend
 from fastapi_cache.backends.inmemory import InMemoryBackend
@@ -8,7 +7,7 @@ from .api import (
     auth_routes, user_routes, property_routes, agent_routes, 
     landlord_routes, tenant_routes, transporter_routes,
     permission_routes, role_routes, field_routes, value_routes,
-    subscription_routes, 
+    subscription_routes, support_ticket_routes
 )
 from .infrastructure.db.database import db
 
@@ -49,3 +48,4 @@ app.include_router(permission_routes.router, prefix="/permissions", tags=["Permi
 app.include_router(field_routes.router, prefix="/fields", tags=["Field"])
 app.include_router(value_routes.router, prefix="/values", tags=["Value"])
 app.include_router(subscription_routes.router, prefix="/subscriptions", tags=["Subscription"])
+app.include_router(support_ticket_routes.router, prefix="/support_tickets", tags=["Support Ticket"])

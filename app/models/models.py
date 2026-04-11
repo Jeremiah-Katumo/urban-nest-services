@@ -7,7 +7,7 @@ from sqlalchemy import (
 )
 from ..domain.enums import (
     user_enum, campaign_enum, house_enum, booking_enum, 
-    entity_enum, base_enum, transporter_enum
+    entity_enum, base_enum, transporter_enum, support_ticket_enum
 )
 from ..infrastructure.db.database import db
 
@@ -426,6 +426,27 @@ class SubscriptionModel(Base):
     features = Column(Text)  # JSON string
     is_deleted = Column(Boolean, default=False)
     
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class SupportTicketModel(Base):
+    __tablename__ = "support_tickets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    role = Column(SqlEnum(user_enum.UserRoles), nullable=False)
+
+    title = Column(String(255))
+    description = Column(Text)
+
+    category = Column(SqlEnum(support_ticket_enum.TicketCategory), default=support_ticket_enum.TicketCategory.OTHER)
+    status = Column(SqlEnum(support_ticket_enum.TicketStatus), default=support_ticket_enum.TicketStatus.OPEN)
+
+    is_deleted = Column(Boolean, default=False)
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc), nullable=False)
