@@ -12,6 +12,4 @@ class IAuth(ABC):
     async def authenticate(self, plain: str, password: str):
         raise NotImplementedError
     
-    @abstractmethod
-    async def reset_password(self, user_id: str, password: str):
-        raise NotImplementedError
+    

@@ -1,13 +1,6 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-# from fastapi_cache.backends.redis import RedisBackend
-from fastapi_cache.backends.inmemory import InMemoryBackend
-from fastapi_cache import FastAPICache
 from .api import (
-    auth_routes, user_routes, property_routes, agent_routes, 
-    landlord_routes, tenant_routes, transporter_routes,
-    permission_routes, role_routes, field_routes, value_routes,
-    subscription_routes, support_ticket_routes
+    auth_routes, user_routes
 )
 from .infrastructure.db.database import db
 

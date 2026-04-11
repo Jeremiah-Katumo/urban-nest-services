@@ -1,3 +1,6 @@
+from sqlalchemy import Column, Integer, String, Text, Enum as SqlEnum, ForeignKey, DateTime, JSON
+from sqlalchemy.orm import relationship
+from datetime import datetime, timezone
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import relationship
@@ -101,7 +104,7 @@ class TenantModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(tenant_enum.TenantStatus), default=tenant_enum.TenantStatus.ACTIVE)
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
@@ -129,12 +132,14 @@ class LandlordModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(landlord_enum.LandlordStatus), default=landlord_enum.LandlordStatus.ACTIVE)
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
         default=user_enum.UserRoles.CUSTOMER
     )
+    
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
@@ -158,12 +163,14 @@ class AgentModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(agent_enum.AgentStatus), default=agent_enum.AgentStatus.ACTIVE)
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
         default=user_enum.UserRoles.CUSTOMER
     )
+    
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
@@ -228,7 +235,7 @@ class UserModel(Base):
     avatar = Column(String(30), nullable=True)
     password = Column(String(255), nullable=False)
 
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(user_enum.UserStatus), default=user_enum.UserStatus.ACTIVE)
 
     role = Column(
         SqlEnum(user_enum.UserRoles),
