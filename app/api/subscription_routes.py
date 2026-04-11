@@ -20,6 +20,22 @@ def get_subscription_usecase(db: AsyncSession = Depends(db.get_db)):
     return SubscriptionUseCase(repo)
 
 
+@router.post(
+    "/",
+    response_model=SubscriptionRead,
+    dependencies=[Depends(require_roles(["super_admin", "admin", "manager", "landlord"]))],
+    status_code=status.HTTP_201_CREATED
+)
+async def create_subscription(
+    payload: SubscriptionCreate,
+    use_case: SubscriptionUseCase = Depends(get_subscription_usecase)
+):
+    created = await use_case.create(payload)
+    await FastAPICache.clear(namespace="subscriptions:list")
+    
+    return created
+
+
 @router.get(
     "/{subscription_id}",
     response_model=SubscriptionRead, 

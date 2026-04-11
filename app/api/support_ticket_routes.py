@@ -4,7 +4,7 @@ from fastapi_cache.decorator import cache
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.entities.support_ticket_entity import (
-    SupportTicketRead, SupportTicketUpdate, SupportTicketPaginationList, AISupportTicketRead
+    SupportTicketCreate, SupportTicketRead, SupportTicketUpdate, SupportTicketPaginationList, AISupportTicketRead
 )
 from ..infrastructure.db.database import db
 from ..domain.usecases.support_ticket_usecase import SupportTicketUseCase
@@ -15,9 +15,25 @@ from ..dependencies.rbac import require_roles
 
 router = APIRouter()
 
-def get_tenant_usecase(db: AsyncSession = Depends(db.get_db)):
+def get_support_ticket_usecase(db: AsyncSession = Depends(db.get_db)):
     repo = SupportTicketRepository(db)
     return SupportTicketUseCase(repo)
+
+
+@router.post(
+    "/",
+    response_model=SupportTicketRead,
+    dependencies=[Depends(require_roles(["super_admin", "admin", "manager", "landlord"]))],
+    status_code=status.HTTP_201_CREATED
+)
+async def create_support_ticket(
+    payload: SupportTicketCreate,
+    use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase)
+):
+    created = await use_case.create(payload)
+    await FastAPICache.clear(namespace="tickets:list")
+    
+    return created
 
 
 @router.get(
@@ -27,7 +43,7 @@ def get_tenant_usecase(db: AsyncSession = Depends(db.get_db)):
     status_code=status.HTTP_200_OK
 )
 async def get_by_id(
-    ticket_id: str, use_case: SupportTicketUseCase = Depends(get_tenant_usecase),
+    ticket_id: str, use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase),
 ):
     return await use_case.get_by_id(ticket_id)
 
@@ -45,7 +61,7 @@ async def get_all(
     columns: Optional[str] = None,
     search_filter: Optional[str] = None,
     sort: Optional[str] = "created_at",
-    use_case: SupportTicketUseCase = Depends(get_tenant_usecase),
+    use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase),
 ):
     return await use_case.get_all(page, limit, columns, search_filter, sort) 
 
@@ -57,7 +73,7 @@ async def get_all(
     status_code=status.HTTP_201_CREATED
 )
 async def update_support_ticket(
-    ticket_id: str, payload: SupportTicketUpdate, use_case: SupportTicketUseCase = Depends(get_tenant_usecase)
+    ticket_id: str, payload: SupportTicketUpdate, use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase)
 ):
     updated = await use_case.update(ticket_id, payload)
     await FastAPICache.clear(namespace="tenants:list")
@@ -71,7 +87,7 @@ async def update_support_ticket(
     status_code=status.HTTP_204_NO_CONTENT
 )
 async def soft_delete(
-    ticket_id: str, use_case: SupportTicketUseCase = Depends(get_tenant_usecase),
+    ticket_id: str, use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase),
 ):
     return await use_case.delete(ticket_id)
 
@@ -82,6 +98,6 @@ def ai_support(
     role: str,
     user_id: int,
     query: str,
-    use_case: SupportTicketUseCase = Depends(get_tenant_usecase),
+    use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase),
 ):
     return use_case.ai_support(db, session_id, role, user_id, query)
