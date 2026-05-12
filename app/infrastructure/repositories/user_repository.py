@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone
-from ...models.models import UserModel, TenantModel, LandlordModel, AgentModel
+from ...models.models import UserModel, TenantModel, LandlordModel, AgentModel, TransporterModel
 from ...domain.enums.user_enum import UserRoles
 from ...domain.interfaces.user_interface import IUser
 from ...domain.entities.user_entity import UserUpdate, UserRead
@@ -51,16 +51,19 @@ class UserRepository(BaseRepository[UserModel], IUser):
         user.updated_at = datetime.now(timezone.utc)
 
         profile_map = {
-            UserRoles.TENANT: TenantModel,
-            UserRoles.LANDLORD: LandlordModel,
-            UserRoles.AGENT: AgentModel,
+            UserRoles.TENANT: (TenantModel, "tenant_id"),
+            UserRoles.LANDLORD: (LandlordModel, "landlord_id"),
+            UserRoles.AGENT: (AgentModel, "agent_id"),
+            UserRoles.MOVER: (TransporterModel, "transporter_id"),
         }
 
-        profile_class = profile_map.get(role)
+        profile_entry = profile_map.get(role)
 
-        if profile_class:
+        if profile_entry:
+            profile_class, user_fk_field = profile_entry
+
             profile = profile_class(
-                user_id=user.id,
+                # user_id=user.id,
                 username=user.username,
                 first_name=user.first_name,
                 last_name=user.last_name,
@@ -68,7 +71,12 @@ class UserRepository(BaseRepository[UserModel], IUser):
                 phone=user.phone,
                 created_at=datetime.now(timezone.utc)
             )
+
             self.db.add(profile)
+            await self.db.flush()  # 🔥 get ID before commit
+
+            # ✅ assign FK to user
+            setattr(user, user_fk_field, profile.id)
 
         await self.db.commit()
         await self.db.refresh(user)

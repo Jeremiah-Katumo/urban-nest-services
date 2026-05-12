@@ -1,25 +1,27 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
-from .auth import get_current_user
+from .auth import get_current_user_oauth_bearer, get_current_user_http_bearer
 from ..models.models import PermissionModel, UserPermissionModel
 from ..redis.redis_client import redis_client
 
 
 def require_roles(roles):
-    async def checker(data = Depends(get_current_user)):
-        user, _ = data
+    async def checker(user = Depends(get_current_user_http_bearer)):
+        print("User:", user.id)
+
         if user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Forbidden"
             )
         return user
+
     return checker
 
 
 def require_permission(permission_name: str):
     async def checker(
-        current_user=Depends(get_current_user),
+        current_user=Depends(get_current_user_http_bearer),
     ):
         cache_key = f"permissions:user:{current_user.id}"
         cached = await redis_client.get(cache_key)
@@ -63,8 +65,10 @@ async def cache_user_permissions(user, db):
     
     
 def enforce_tenant_access(resource_tenant_id: str):
-    def checker(current_user=Depends(get_current_user)):
+    def checker(current_user=Depends(get_current_user_http_bearer)):
         if current_user.tenant_id != resource_tenant_id:
             raise HTTPException(403, "Cross-tenant access denied")
+        
         return current_user
+    
     return checker

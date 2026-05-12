@@ -1,5 +1,5 @@
 from enum import Enum
 
-class Status(str, Enum):
+class BaseStatus(str, Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"

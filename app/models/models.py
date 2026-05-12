@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declared_attr
 from sqlalchemy import (
     Table, Column, Integer, String, Text, Enum as SqlEnum, 
     ForeignKey, DateTime, JSON, Boolean, UniqueConstraint, Float
@@ -13,11 +13,46 @@ from ..infrastructure.db.database import db
 
 Base = db.Base
 
+
 def generate_uuid():
     return str(uuid.uuid4())
 
+
+class TimestampMixin:
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+
 class SoftDeleteMixin:
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class AuditMixin:
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    deleted_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+
+    @declared_attr
+    def created_by_user(cls):
+        return relationship("UserModel", foreign_keys=[cls.created_by], lazy="selectin")
+
+    @declared_attr
+    def updated_by_user(cls):
+        return relationship("UserModel", foreign_keys=[cls.updated_by], lazy="selectin")
+
+    @declared_attr
+    def deleted_by_user(cls):
+        return relationship("UserModel", foreign_keys=[cls.deleted_by], lazy="selectin")
+
+
+class BaseModelMixin(TimestampMixin, SoftDeleteMixin, AuditMixin):
+    """Full audit + timestamps"""
+    pass
     
     
 role_permissions = Table(
@@ -41,45 +76,38 @@ class UserPermissionModel(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
     permission_id = Column(String(36), ForeignKey("permissions.id", ondelete="CASCADE"))
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     permission = relationship("PermissionModel")
 
 
-class PermissionModel(Base):
+class PermissionModel(Base, BaseModelMixin):
     __tablename__ = "permissions"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(50), unique=True)
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
     feature = relationship("FeatureModel", back_populates="permissions")
     roles = relationship("RoleModel", secondary=role_permissions, back_populates="permissions", lazy="selectin")
+    entity = relationship("EntityModel")
     feature_id = Column(String(36), ForeignKey("features.id", ondelete="CASCADE"))
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
-    
-    entity = relationship("EntityModel")
     
     def __repr__(self): 
         return f"<Permission id={self.id} name={self.name}>"
 
 
-class RoleModel(Base):
+class RoleModel(Base, BaseModelMixin):
     __tablename__ = "roles"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(100), unique=True)
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
     permissions = relationship("PermissionModel", secondary=role_permissions, back_populates="roles", lazy="selectin")
     users = relationship("UserModel", secondary=user_roles, back_populates="roles", lazy="selectin")
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
@@ -91,7 +119,7 @@ class RoleModel(Base):
         return f"<Role id={self.id} name={self.name}>"
 
 
-class TenantModel(Base):
+class TenantModel(Base, BaseModelMixin):
     __tablename__ = "tenants"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -101,25 +129,25 @@ class TenantModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(base_enum.BaseStatus), default=base_enum.BaseStatus.ACTIVE)
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
         default=user_enum.UserRoles.CUSTOMER
     )
     
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
-    deleted_at = Column(DateTime(timezone=True))
-    
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
-    users = relationship("UserModel", back_populates="tenant")
+    users = relationship(
+        "UserModel",
+        back_populates="tenant",
+        foreign_keys="UserModel.tenant_id",
+        lazy="selectin"
+    )
 
 
-class LandlordModel(Base):
+class LandlordModel(Base, BaseModelMixin):
     __tablename__ = "landlords"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -129,26 +157,26 @@ class LandlordModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(base_enum.BaseStatus), default=base_enum.BaseStatus.ACTIVE)
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
         default=user_enum.UserRoles.CUSTOMER
     )
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
-    deleted_at = Column(DateTime(timezone=True))
     
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     properties = relationship("PropertyModel", back_populates="landlord")
     entity = relationship("EntityModel")
-    user = relationship("UserModel", back_populates="landlord")
+    users = relationship(
+        "UserModel",
+        back_populates="landlord",
+        foreign_keys="UserModel.landlord_id",
+        lazy="selectin"
+    )
     
     
-class AgentModel(Base):
+class AgentModel(Base, BaseModelMixin):
     __tablename__ = "agents"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -158,25 +186,25 @@ class AgentModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
 
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(base_enum.BaseStatus), default=base_enum.BaseStatus.ACTIVE)
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
         default=user_enum.UserRoles.CUSTOMER
     )
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
-    deleted_at = Column(DateTime(timezone=True))
     
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
-    user = relationship("UserModel", back_populates="agent")
+    users = relationship(
+        "UserModel", 
+        back_populates="agent",
+        foreign_keys="UserModel.agent_id",
+        lazy="selectin"
+    )
     
     
-class TransporterModel(Base):
+class TransporterModel(Base, BaseModelMixin):
     __tablename__ = "transporters"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -188,33 +216,33 @@ class TransporterModel(Base):
     email = Column(String(50), unique=True, nullable=False, index=True)
     phone = Column(String(20), nullable=False)
     avatar = Column(String(30), nullable=True)
-    password = Column(String(255), nullable=False)
+    # password = Column(String(255), nullable=False)
     
     base_price = Column(Float, nullable=False, default=50)
     price_per_km = Column(Float, nullable=False, default=2)
     rating = Column(Float, nullable=False, default=4.7)
     driver_status = Column(SqlEnum(transporter_enum.DriverStatus), nullable=False, default=transporter_enum.DriverStatus.AVAILABLE)
 
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(base_enum.BaseStatus), default=base_enum.BaseStatus.ACTIVE)
 
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
         default=user_enum.UserRoles.CUSTOMER
     )
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
-    deleted_at = Column(DateTime(timezone=True))
     
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
-    user = relationship("UserModel", back_populates="transporter")
+    users = relationship(
+        "UserModel", 
+        back_populates="transporter",
+        foreign_keys="UserModel.transporter_id",
+        lazy="selectin"
+    )
     
 
-class UserModel(Base):
+class UserModel(Base, BaseModelMixin):
     __tablename__ = "users"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -228,18 +256,13 @@ class UserModel(Base):
     avatar = Column(String(30), nullable=True)
     password = Column(String(255), nullable=False)
 
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(base_enum.BaseStatus), default=base_enum.BaseStatus.ACTIVE)
 
     role = Column(
         SqlEnum(user_enum.UserRoles),
         nullable=False,
         default=user_enum.UserRoles.CUSTOMER
     )
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
-    deleted_at = Column(DateTime(timezone=True))
     
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     tenant_id = Column(String(36), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
@@ -247,15 +270,18 @@ class UserModel(Base):
     agent_id = Column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), nullable=True)
     transporter_id = Column(String(36), ForeignKey("transporters.id", ondelete="CASCADE"), nullable=True)
     
-    tenant = relationship("TenantModel", back_populates="users")
-    landlord = relationship("LandlordModel", back_populates="user", uselist=False)
-    agent = relationship("AgentModel", back_populates="user", uselist=False)
-    transporter = relationship("TransporterModel", back_populates="user", uselist=False)
+    tenant = relationship("TenantModel", back_populates="users", foreign_keys=[tenant_id], uselist=False)
+    landlord = relationship("LandlordModel", back_populates="users", foreign_keys=[landlord_id], uselist=False)
+    agent = relationship("AgentModel", back_populates="users", foreign_keys=[agent_id], uselist=False)
+    transporter = relationship("TransporterModel", back_populates="users", foreign_keys=[transporter_id], uselist=False)
     roles = relationship('RoleModel', secondary=user_roles, back_populates="users", lazy="selectin")  # many-to-many
-    entity = relationship("EntityModel")
+    entity = relationship(
+        "EntityModel",
+        foreign_keys=[entity_id]
+    )
     
 
-class PropertyModel(Base):
+class PropertyModel(Base, BaseModelMixin):
     __tablename__ = "properties"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -273,18 +299,13 @@ class PropertyModel(Base):
 
     landlord_id = Column(String(36), ForeignKey("landlords.id", ondelete="CASCADE"))
     agent_id = Column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), nullable=True)
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
-    deleted_at = Column(DateTime(timezone=True))
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"))
 
     landlord = relationship("LandlordModel", back_populates="properties")
     entity = relationship("EntityModel")
 
 
-class CampaignModel(Base):
+class CampaignModel(Base, BaseModelMixin):
     __tablename__ = "campaigns"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -298,16 +319,12 @@ class CampaignModel(Base):
     sent_at = Column(DateTime)
     expires_at = Column(DateTime)
 
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
-    deleted_at = Column(DateTime(timezone=True))
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"))
     
     entity = relationship("EntityModel")
     
     
-class BookingModel(Base):
+class BookingModel(Base, BaseModelMixin):
     __tablename__ = "bookings"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -321,10 +338,6 @@ class BookingModel(Base):
     
     status = Column(SqlEnum(booking_enum.BookingStatus), default=booking_enum.BookingStatus.PENDING)
     
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
-    deleted_at = Column(DateTime(timezone=True))
     feature_id = Column(String(36), ForeignKey("features.id", ondelete="CASCADE"))
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
@@ -333,25 +346,21 @@ class BookingModel(Base):
     entity = relationship("EntityModel", back_populates="bookings")
     
     
-class FeatureModel(Base):
+class FeatureModel(Base, BaseModelMixin):
     __tablename__ = "features"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text)
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
+    status = Column(SqlEnum(base_enum.BaseStatus), default=base_enum.BaseStatus.ACTIVE)
 
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
     permissions = relationship("PermissionModel", back_populates="feature")
     
     
-class EntityModel(Base):
+class EntityModel(Base, BaseModelMixin):
     __tablename__ = "entities"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -367,16 +376,12 @@ class EntityModel(Base):
         ),
         nullable=True
     )
-    status = Column(SqlEnum(base_enum.Status), default=base_enum.Status.ACTIVE)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(SqlEnum(base_enum.BaseStatus), default=base_enum.BaseStatus.ACTIVE)
 
     bookings = relationship("BookingModel", back_populates="entity")    
     
     
-class FieldModel(Base):
+class FieldModel(Base, BaseModelMixin):
     __tablename__ = "fields"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -387,15 +392,11 @@ class FieldModel(Base):
     type = Column(String(32), nullable=False)  # 'text','number','boolean','date','select'
     options = Column(JSON, nullable=True)
     required = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     values = relationship("ValueModel", back_populates="field")
 
 
-class ValueModel(Base):
+class ValueModel(Base, BaseModelMixin):
     __tablename__ = "values"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -403,11 +404,7 @@ class ValueModel(Base):
     entity_id = Column(String(64), nullable=False)  # e.g., user id or product id
     field_id = Column(String(36), ForeignKey("fields.id"))
     value = Column(JSON, nullable=True)  # store typed value(s) as JSON
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
-
+    
     __table_args__ = (
         UniqueConstraint("field_id", "entity_id"),
     )
@@ -415,7 +412,7 @@ class ValueModel(Base):
     field = relationship("FieldModel", back_populates="values")
     
     
-class SubscriptionModel(Base):
+class SubscriptionModel(Base, BaseModelMixin):
     __tablename__ = "subscriptions"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -426,14 +423,9 @@ class SubscriptionModel(Base):
     description = Column(Text)
     features = Column(Text)  # JSON string
     is_deleted = Column(Boolean, default=False)
-    
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
 
-class SupportTicketModel(Base):
+class SupportTicketModel(Base, BaseModelMixin):
     __tablename__ = "support_tickets"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -447,8 +439,3 @@ class SupportTicketModel(Base):
     status = Column(SqlEnum(support_ticket_enum.TicketStatus), default=support_ticket_enum.TicketStatus.OPEN)
 
     is_deleted = Column(Boolean, default=False)
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)

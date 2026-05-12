@@ -10,6 +10,8 @@ from .api import (
     subscription_routes, support_ticket_routes
 )
 from .infrastructure.db.database import db
+from .core.seeder import seed_roles_permissions
+
 
 app = FastAPI(root_path="/api/v1")
 
@@ -17,6 +19,7 @@ app = FastAPI(root_path="/api/v1")
 @app.on_event("startup")
 async def startup():
     await db.create_all_tables()
+    await seed_roles_permissions()
     FastAPICache.init(InMemoryBackend(), prefix="fastapi-cache")
 # Production
 # @app.on_event("startup")

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional, List, Dict
-from ..enums.base_enum import Status
+from ..enums.base_enum import BaseStatus as Status
 from ..enums.user_enum import UserRoles
 from ..enums.transporter_enum import DriverStatus
 from .user_entity import UserRead

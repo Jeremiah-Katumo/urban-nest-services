@@ -26,67 +26,163 @@ async def seed_permissions(db: AsyncSession):
 
 
 roles_permissions_map = {
-    "admin": ["create_user", "delete_user", "update_user", "generate_description"],
+    "admin": [
+        "generate_description", "view_reports", "view_dashboard",
+        "manage_properties",
+        "manage_bookings",
+        "manage_users",
+        "manage_campaigns",
+        "manage_tenants",
+        "manage_landlords",
+        "manage_agents",
+        "manage_movers",
+        "manage_discounts",
+        "manage_promotions",
+        "manage_content",
+        "manage_settings"
+    ],
     "super_admin": ["*"],  # '*' = all permissions
-    "manager": ["generate_description", "view_reports"],
-    "agent": ["view_properties", "create_booking"],
-    "tenant": ["view_properties", "create_booking"]
+    "manager": [
+        "generate_description", "view_reports", "view_dashboard",
+        "manage_bookings",
+        "manage_campaigns",
+        "manage_tenants",
+        "manage_landlords",
+        "manage_agents",
+        "manage_movers",
+        "manage_discounts",
+        "manage_promotions",
+        "manage_content",
+        "manage_settings",
+        "view_user", "update_user", "delete_user",
+    ],
+    "agent": [
+        "view_dashboard",
+        "manage_properties", 
+        "manage_bookings",
+        "manage_campaigns",
+        "manage_tenants",
+        "manage_landlords",
+        "view_user", "update_user", "delete_user",
+    ],
+    "tenant": [
+        "view_properties", 
+        "view_bookings", "view_booking", "create_booking", "update_booking", "delete_booking",
+        "view_campaigns", "view_campaign"
+        "view_user", "update_user", "delete_user",
+    ],
+    "landlord": [
+        "view_dashboard",
+        "manage_properties",
+        "manage_bookings",
+        "manage_campaigns",
+        "manage_tenants",
+        "manage_agents",
+        "view_user", "update_user", "delete_user",
+    ],
+    "mover": [
+        "view_dashboard",
+        "manage_bookings",
+        "view_campaigns", "view_campaign",
+        "view_user", "update_user", "delete_user",
+    ],
 }
 
 permissions_descriptions = {
+    "view_users": "Ability to view users",
+    "view_user": "Ability to view a single user",
     "create_user": "Ability to create a user",
     "delete_user": "Ability to delete a user",
     "update_user": "Ability to update a user",
+    "view_dashboard": "Ability to view dashboard",
     "generate_description": "Ability to generate descriptions using AI",
     "view_reports": "Ability to view system reports",
     "view_properties": "Ability to view properties",
-    "create_booking": "Ability to create a booking",
+    "view_property": "Ability to view a single property",
+    "create_property": "Ability to create property",
+    "update_property": "Ability to update property",
+    "delete_property": "Ability to delete property",
+    "view_bookings": "Ability to view bookings",
+    "view_booking": "Ability to view a single booking",
+    "create_booking": "Ability to create booking",
+    "update_booking": "Ability to update booking",
+    "delete_booking": "Ability to delete booking",
+    "view_campaigns": "Ability to view campaigns",
+    "view_campaign": "Ability to view a single campaign",
+    "create_campaign": "Ability to create campaigns",
+    "update_campaign": "Ability to edit campaigns",
+    "delete_campaign": "Ability to delete campaigns",
+    "manage_properties": "Full access to manage properties",
+    "manage_bookings": "Full access to manage bookings",
+    "manage_users": "Full access to manage users",
+    "manage_campaigns": "Full access to manage campaigns",
+    "manage_tenants": "Full access to manage tenants",
+    "manage_landlords": "Full access to manage landlords",
+    "manage_agents": "Full access to manage agents",
+    "manage_movers": "Full access to manage movers",
+    "manage_discounts": "Full access to manage discounts",
+    "manage_promotions": "Full access to manage promotions",
+    "manage_content": "Full access to manage content",
+    "manage_settings": "Full access to manage settings",
     "*": "Full access to all permissions"
 }
 
 
 async def seed_roles_permissions():
-    async with async_session.get_session() as session:
+    async for session in async_session.get_session():
         async with session.begin():
-            # Seed permissions
+
+            # 1. LOAD EXISTING PERMISSIONS
+            result = await session.execute(select(PermissionModel))
+            existing_permissions = {
+                perm.name: perm for perm in result.scalars().all()
+            }
+
+            # 2. CREATE MISSING PERMISSIONS
+            new_permissions = []
             for perm_name, desc in permissions_descriptions.items():
-                existing_perm = await session.execute(
-                    select(PermissionModel).where(
-                        PermissionModel.name == perm_name
-                    )
-                )
-                perm = existing_perm.scalar_one_or_none()
-                if not perm:
+                if perm_name not in existing_permissions:
                     perm = PermissionModel(name=perm_name, description=desc)
                     session.add(perm)
-            
-            await session.flush()  # flush so permissions have IDs
+                    new_permissions.append(perm)
 
-            # Seed roles
-            for role_name, perms in roles_permissions_map.items():
-                existing_role = await session.execute(select(RoleModel).where(RoleModel.name == role_name))
-                role = existing_role.scalar_one_or_none()
+            if new_permissions:
+                await session.flush()
+                for perm in new_permissions:
+                    existing_permissions[perm.name] = perm
+
+            # 3. LOAD EXISTING ROLES
+            result = await session.execute(select(RoleModel))
+            existing_roles = {
+                role.name: role for role in result.scalars().all()
+            }
+
+            # 4. CREATE / UPDATE ROLES
+            for role_name, perm_names in roles_permissions_map.items():
+                role = existing_roles.get(role_name)
                 if not role:
-                    role = RoleModel(name=role_name, description=f"{role_name} role")
+                    role = RoleModel(
+                        name=role_name,
+                        description=f"{role_name} role"
+                    )
                     session.add(role)
                     await session.flush()
-                
-                # Attach permissions to role
-                role.permissions = []
-                for perm_name in perms:
-                    if perm_name == "*":
-                        all_perms = await session.execute(select(PermissionModel))
-                        role.permissions = all_perms.scalars().all()
-                        break
-                    perm = await session.execute(
-                        select(PermissionModel).where(
-                            PermissionModel.name == perm_name
-                        )
-                    )
-                    perm_obj = perm.scalar_one_or_none()
-                    if perm_obj:
-                        role.permissions.append(perm_obj)
 
-            await session.commit()
-            print("Roles and permissions seeded successfully!")
-            
+                # HANDLE "*" (ALL PERMISSIONS)
+                # 🔐 ensure relationship is loaded (prevents implicit query)
+                await session.refresh(role, ["permissions"])
+
+                # clear existing safely
+                role.permissions.clear()
+
+                # assign safely
+                if "*" in perm_names:
+                    role.permissions.extend(existing_permissions.values())
+                else:
+                    role.permissions.extend(
+                        existing_permissions[p]
+                        for p in perm_names
+                        if p in existing_permissions
+                    )
+
+            print("✅ Roles and permissions seeded successfully!")

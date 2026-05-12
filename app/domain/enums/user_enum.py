@@ -13,4 +13,5 @@ class UserRoles(str, Enum):
     ADMIN = "admin"
     SUPER_ADMIN = "super_admin"
     MANAGER = "manager"
+    MOVER = "mover"
     

@@ -6,11 +6,13 @@ from ...domain.entities.auth_entity import RegisterSchema
 from ...domain.interfaces.auth_interface import IAuth
 from ...models.models import UserModel
 from ...core.security import hash_password, verify_password
+from ...infrastructure.repositories.user_repository import UserRepository
 
 
 class AuthRepository(IAuth):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
+        self.user_repo = UserRepository(db_session)
 
     async def register(self, data):
         result = await self.db_session.execute(
@@ -43,13 +45,7 @@ class AuthRepository(IAuth):
         return user
 
     async def authenticate(self, email: str, password: str):
-        result = await self.db_session.execute(
-            select(UserModel).where(
-                UserModel.email == email,
-                UserModel.deleted_at.is_(None)
-            )
-        )
-        user = result.scalar_one_or_none()
+        user = await self.user_repo.get_by_email(email)
 
         if not user:
             raise HTTPException(404, "User not found")

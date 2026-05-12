@@ -12,7 +12,7 @@ from ..core.security import (
     SECRET_KEY,
     ALGORITHM
 )
-from ..dependencies.auth import get_current_user
+from ..dependencies.auth import get_current_user_http_bearer, get_current_user_oauth_bearer
 from ..redis.redis_client import blacklist_token
 
 
@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 @router.get("/me")
-async def me(user=Depends(get_current_user)):
+async def me(user=Depends(get_current_user_http_bearer)):
     return user
 
 
@@ -42,15 +42,9 @@ async def login(data: LoginSchema, session: AsyncSession = Depends(db.get_db)):
     repo = AuthRepository(session)
     use_case = AuthUseCase(repo)
     
-    user = await use_case.authenticate(data.email, data.password)
+    user = await use_case.authenticate(data)
 
-    if not user:
-        raise HTTPException(401, "Invalid credentials")
-
-    return {
-        "access_token": create_access_token(user.id, user.role.value),
-        "refresh_token": create_refresh_token(user.id)
-    }
+    return user
 
 
 @router.post("/refresh")
@@ -87,7 +81,7 @@ async def reset_password(
 
 
 @router.post("/logout")
-async def logout(token_data = Depends(get_current_user)):
+async def logout(token_data = Depends(get_current_user_http_bearer)):
     _, payload = token_data
 
     jti = payload.get("jti")
