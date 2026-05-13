@@ -4,7 +4,7 @@ from fastapi_cache.decorator import cache
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.entities.tenant_entity import (
-    TenantCreate, TenantRead, TenantUpdate, TenantPaginationList
+    TenantRead, TenantUpdate, TenantPaginationList
 )
 from ..infrastructure.db.database import db
 from ..domain.usecases.tenant_usecase import TenantUseCase
@@ -15,9 +15,9 @@ from ..dependencies.rbac import require_roles
 
 router = APIRouter()
 
-def get_tenant_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = TenantRepository(db)
-    return TenantUseCase(repo)
+def get_tenant_usecase(session: AsyncSession = Depends(db.get_db)):
+    repo = TenantRepository(session)
+    return TenantUseCase(repo, response_schema=TenantRead)
 
 
 @router.get(
@@ -35,7 +35,7 @@ async def get_by_id(
 @router.get(
     "/", 
     response_model=TenantPaginationList, 
-    dependencies=[Depends(require_roles(["admin", "tenant", "customer", "landlord", "agent", "manager", "super_admin"]))],
+    dependencies=[Depends(require_roles(["admin", "landlord", "agent", "manager", "super_admin"]))],
     status_code=status.HTTP_200_OK
 )
 @cache(expire=3600, namespace="tenants:list", key_builder=list_cache_key_builder)
