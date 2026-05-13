@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from fastapi_cache import FastAPICache
 from fastapi_cache.decorator import cache
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.entities.tenant_entity import (
     TenantCreate, TenantRead, TenantUpdate, TenantPaginationList
@@ -47,7 +47,9 @@ async def get_all(
     sort: Optional[str] = "created_at",
     use_case: TenantUseCase = Depends(get_tenant_usecase),
 ):
-    return await use_case.get_all(page, limit, columns, search_filter, sort) 
+    relations: Optional[List[str]] = ["user"]
+    
+    return await use_case.get_all(page, limit, columns, search_filter, sort, relations) 
 
 
 @router.patch(

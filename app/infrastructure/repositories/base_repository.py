@@ -48,7 +48,7 @@ class BaseRepository(Generic[TModel]):
         stmt = await query_manager.QueryManager.apply_filters(stmt, self.model, search_filter) 
         stmt = await query_manager.QueryManager.apply_sort(stmt, self.model, sort) 
         
-        result, total = await query_manager.QueryManager.paginate(self.db, stmt, self.model, page, limit)
+        result, total = await query_manager.QueryManager.paginate(self.db, stmt, page, limit)
 
         users = result.scalars().unique().all()
         

@@ -55,7 +55,7 @@ class QueryManager:
         return stmt
 
     @staticmethod
-    async def paginate(db_session, stmt, model, page: int, limit: int):
+    async def paginate(db_session, stmt, page: int, limit: int):
         # Clone query WITHOUT limit/offset
         count_stmt = stmt.order_by(None)
 
