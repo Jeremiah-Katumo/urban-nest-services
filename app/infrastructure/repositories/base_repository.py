@@ -1,7 +1,8 @@
 from fastapi import HTTPException, status
 from typing import Generic, Type, TypeVar, List, Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 from ...core import query_manager
 
@@ -33,17 +34,23 @@ class BaseRepository(Generic[TModel]):
         columns: str | None,
         search_filter: str | None,
         sort: str | None,
+        relations: List[str] = None
     ):
         stmt = select(self.model).where(self.model.deleted_at.is_(None))
+        
+        if relations:
+            for rel in relations:
+                # stmt = stmt.options(selectinload(rel))
+                if hasattr(self.model, rel):
+                    stmt = stmt.options(selectinload(getattr(self.model, rel)))
         
         stmt = await query_manager.QueryManager.apply_columns(stmt, self.model, columns) 
         stmt = await query_manager.QueryManager.apply_filters(stmt, self.model, search_filter) 
         stmt = await query_manager.QueryManager.apply_sort(stmt, self.model, sort) 
-        result, total = await query_manager.QueryManager.paginate(self.db, stmt, page, limit)
+        
+        result, total = await query_manager.QueryManager.paginate(self.db, stmt, self.model, page, limit)
 
-        result = await self.db.execute(stmt)
-
-        users = result.scalars().all()
+        users = result.scalars().unique().all()
         
         return await query_manager.QueryManager.build_response(users, page, limit, total)
     

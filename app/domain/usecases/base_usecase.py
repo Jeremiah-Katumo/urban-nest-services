@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Optional, Dict
+from typing import Generic, TypeVar, Optional, Dict, List
 from fastapi import HTTPException, status
 
 TModel = TypeVar("TModel")
@@ -7,8 +7,9 @@ TUpdate = TypeVar("TUpdate")
 
 class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
     
-    def __init__(self, repo):
+    def __init__(self, repo, response_schema=None):
         self.repo = repo
+        self.response_schema = response_schema
 
     # Hooks (Override in child)        
     async def before_create(self, data: Dict) -> Dict:
@@ -43,9 +44,10 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
         columns: Optional[str] = None,
         search_filter: Optional[str] = None,
         sort: Optional[str] = None,
+        relations: Optional[List[str]] = None,
     ):
         # GuardRails
-        if page < 1:
+        if page < 1:    
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Page must be >= 1"
             )
@@ -55,7 +57,16 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Limit must be between 1 and 100"
             )
             
-        return await self.repo.get_all(page, limit, columns, search_filter, sort)
+        result = await self.repo.get_all(page, limit, columns, search_filter, sort, relations)
+        
+        # ✅ Generic serialization
+        if self.response_schema and result.get("items"):
+            result["items"] = [
+                self.response_schema.model_validate(item, from_attributes=True)
+                for item in result["items"]
+            ]
+
+        return result
     
     async def create(self, data: TCreate) -> TModel:
         payload = data.model_dump() if hasattr(data, "model_dump") else data
@@ -83,4 +94,3 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
         await self.before_delete(instance)
         
         return await self.repo.soft_delete(entity_id, soft)
-    

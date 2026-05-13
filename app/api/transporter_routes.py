@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from fastapi_cache import FastAPICache
 from fastapi_cache.decorator import cache
-from typing import Optional
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.entities.transporter_entity import (
     TransporterRead, TransporterUpdate, TransporterPaginationList
@@ -15,9 +15,9 @@ from ..dependencies.rbac import require_roles
 
 router = APIRouter()
 
-def get_transporter_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = TransporterRepository(db)
-    return TransporterUseCase(repo)
+def get_transporter_usecase(session: AsyncSession = Depends(db.get_db)):
+    repo = TransporterRepository(session)
+    return TransporterUseCase(repo, response_schema=TransporterRead)
 
 
 @router.get(
@@ -47,7 +47,9 @@ async def get_all(
     sort: Optional[str] = "created_at",
     use_case: TransporterUseCase = Depends(get_transporter_usecase),
 ):
-    return await use_case.get_all(page, limit, columns, search_filter, sort) 
+    relations: Optional[List[str]] = ["user"]
+    
+    return await use_case.get_all(page, limit, columns, search_filter, sort, relations) 
 
 
 @router.patch(

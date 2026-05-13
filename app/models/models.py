@@ -139,11 +139,12 @@ class TenantModel(Base, BaseModelMixin):
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
-    users = relationship(
+    user = relationship(
         "UserModel",
         back_populates="tenant",
         foreign_keys="UserModel.tenant_id",
-        lazy="selectin"
+        lazy="selectin",
+        uselist=False
     )
 
 
@@ -168,11 +169,12 @@ class LandlordModel(Base, BaseModelMixin):
     
     properties = relationship("PropertyModel", back_populates="landlord")
     entity = relationship("EntityModel")
-    users = relationship(
+    user = relationship(
         "UserModel",
         back_populates="landlord",
         foreign_keys="UserModel.landlord_id",
-        lazy="selectin"
+        lazy="selectin",
+        uselist=False
     )
     
     
@@ -196,11 +198,12 @@ class AgentModel(Base, BaseModelMixin):
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
-    users = relationship(
+    user = relationship(
         "UserModel", 
         back_populates="agent",
         foreign_keys="UserModel.agent_id",
-        lazy="selectin"
+        lazy="selectin",
+        uselist=False
     )
     
     
@@ -234,11 +237,12 @@ class TransporterModel(Base, BaseModelMixin):
     entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True)
     
     entity = relationship("EntityModel")
-    users = relationship(
+    user = relationship(
         "UserModel", 
         back_populates="transporter",
         foreign_keys="UserModel.transporter_id",
-        lazy="selectin"
+        lazy="selectin",
+        uselist=False
     )
     
 
@@ -270,10 +274,10 @@ class UserModel(Base, BaseModelMixin):
     agent_id = Column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), nullable=True)
     transporter_id = Column(String(36), ForeignKey("transporters.id", ondelete="CASCADE"), nullable=True)
     
-    tenant = relationship("TenantModel", back_populates="users", foreign_keys=[tenant_id], uselist=False)
-    landlord = relationship("LandlordModel", back_populates="users", foreign_keys=[landlord_id], uselist=False)
-    agent = relationship("AgentModel", back_populates="users", foreign_keys=[agent_id], uselist=False)
-    transporter = relationship("TransporterModel", back_populates="users", foreign_keys=[transporter_id], uselist=False)
+    tenant = relationship("TenantModel", back_populates="user", foreign_keys=[tenant_id], uselist=False)
+    landlord = relationship("LandlordModel", back_populates="user", foreign_keys=[landlord_id], uselist=False)
+    agent = relationship("AgentModel", back_populates="user", foreign_keys=[agent_id], uselist=False)
+    transporter = relationship("TransporterModel", back_populates="user", foreign_keys=[transporter_id], uselist=False)
     roles = relationship('RoleModel', secondary=user_roles, back_populates="users", lazy="selectin")  # many-to-many
     entity = relationship(
         "EntityModel",

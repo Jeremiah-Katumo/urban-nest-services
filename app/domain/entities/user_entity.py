@@ -37,6 +37,10 @@ class UserRead(BaseModel):
     updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
     
+    model_config = {
+        "from_attributes": True
+    }
+    
 class UserPaginationList(BaseModel):
     items: Optional[List[UserRead]]
     page: int

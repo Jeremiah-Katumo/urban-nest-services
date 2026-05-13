@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, Query, status
 from fastapi_cache import FastAPICache
 from fastapi_cache.decorator import cache
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.entities.landlord_entity import (
-    LandlordCreate, LandlordUpdate, LandlordRead, LandlordPaginationList
+    LandlordUpdate, LandlordRead, LandlordPaginationList
 )
 from ..infrastructure.db.database import db
 from ..domain.usecases.landlord_usecase import LandlordUseCase
@@ -15,9 +15,9 @@ from ..dependencies.rbac import require_roles
 
 router = APIRouter()
 
-def get_landlord_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = LandlordRepository(db)
-    return LandlordUseCase(repo)
+def get_landlord_usecase(session: AsyncSession = Depends(db.get_db)):
+    repo = LandlordRepository(session)
+    return LandlordUseCase(repo, response_schema=LandlordRead)
 
 
 @router.get(
@@ -47,7 +47,9 @@ async def get_all(
     sort: Optional[str] = "created_at",
     use_case: LandlordUseCase = Depends(get_landlord_usecase),
 ):
-    return await use_case.get_all(page, limit, columns, search_filter, sort) 
+    relations: Optional[List[str]] = ["user", "properties"]
+    
+    return await use_case.get_all(page, limit, columns, search_filter, sort, relations) 
 
 
 @router.patch(

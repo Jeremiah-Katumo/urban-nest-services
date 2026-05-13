@@ -12,7 +12,7 @@ class QueryManager:
                     selected.append(getattr(model, col))
                     
             if selected:
-                stmt = select(*selected)
+                stmt = stmt.with_only_columns(selected, maintain_column_froms=True)
                 
         return stmt
     
@@ -53,18 +53,24 @@ class QueryManager:
             stmt = stmt.order_by(*sorted_columns)
             
         return stmt
-    
+
     @staticmethod
-    async def paginate(db_session, stmt, page: int, limit: int):
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = await db_session.execute(count_stmt)
-        total = total.scalar()
-        
-        offset = max((page - 1) * limit, 0)
+    async def paginate(db_session, stmt, model, page: int, limit: int):
+        # Clone query WITHOUT limit/offset
+        count_stmt = stmt.order_by(None)
+
+        count_stmt = select(func.count()).select_from(
+            count_stmt.subquery()
+        )
+
+        total = (await db_session.execute(count_stmt)).scalar()
+
+        offset = (page - 1) * limit
+
         stmt = stmt.offset(offset).limit(limit)
-        
+
         result = await db_session.execute(stmt)
-        
+
         return result, total
     
     @staticmethod
