@@ -414,6 +414,9 @@ class EntityModel(Base, BaseModelMixin):
     )
     status = Column(SqlEnum(base_enum.BaseStatus), default=base_enum.BaseStatus.ACTIVE)
     
+    logo_url = Column(String(255), nullable=True)
+    website_url = Column(String(255), nullable=True)
+    
     entity_heading = Column(String, nullable=True)
     hero_section = Column(JSON, nullable=True)
     
