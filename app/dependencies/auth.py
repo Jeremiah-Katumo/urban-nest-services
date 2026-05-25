@@ -14,6 +14,11 @@ async def get_current_user_oauth_bearer(
     token: str = Depends(oauth2_scheme),
     session: AsyncSession = Depends(db.get_db)
 ):
+    ''' Dependency to get the current user from an OAuth2 Bearer token.
+        - Decodes the JWT token to extract the user ID and checks if the token is blacklisted.
+        - If the token is valid and not blacklisted, retrieves the user from the database.
+        - Raises HTTP exceptions for invalid tokens, revoked tokens, or if the user is not found.
+    '''
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         jti = payload.get("jti")
@@ -53,6 +58,11 @@ async def get_current_user_http_bearer(
     token=Depends(security),
     session=Depends(db.get_db)
 ):
+    ''' Dependency to get the current user from an HTTP Bearer token.
+        - Decodes the JWT token to extract the user ID and checks if the token is blacklisted.
+        - If the token is valid and not blacklisted, retrieves the user from the database.
+        - Raises HTTP exceptions for invalid tokens, revoked tokens, or if the user is not found.
+    '''
     try:
         payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
 
@@ -64,8 +74,8 @@ async def get_current_user_http_bearer(
 
         user_id = payload["sub"]
 
-    except Exception:
-        raise HTTPException(401, "Invalid token")
+    except Exception as e:
+        raise HTTPException(401, "Invalid token") from e
 
     result = await session.execute(
         select(UserModel).where(UserModel.id == user_id)

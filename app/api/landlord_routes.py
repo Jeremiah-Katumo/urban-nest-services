@@ -16,6 +16,7 @@ from ..dependencies.rbac import require_roles
 router = APIRouter()
 
 def get_landlord_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency function to get an instance of LandlordUseCase with the database session '''
     repo = LandlordRepository(session)
     return LandlordUseCase(repo, response_schema=LandlordRead)
 
@@ -29,7 +30,12 @@ def get_landlord_usecase(session: AsyncSession = Depends(db.get_db)):
 async def get_by_id(
     landlord_id: str, use_case: LandlordUseCase = Depends(get_landlord_usecase),
 ):
-    return await use_case.get_by_id(landlord_id)
+    landlord = await use_case.get_by_id(landlord_id)
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="landlords:list")
+        
+    return landlord
 
 
 @router.get(
@@ -62,7 +68,9 @@ async def update_landlord(
     landlord_id: str, payload: LandlordUpdate, use_case: LandlordUseCase = Depends(get_landlord_usecase)
 ):
     updated = await use_case.update(landlord_id, payload)
-    await FastAPICache.clear(namespace="landlords:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="landlords:list")
     
     return updated
 
@@ -75,4 +83,7 @@ async def update_landlord(
 async def soft_delete(
     landlord_id: str, use_case: LandlordUseCase = Depends(get_landlord_usecase),
 ):
-    return await use_case.delete(landlord_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="landlords:list")
+
+    return await use_case.soft_delete(landlord_id)

@@ -15,8 +15,9 @@ from ..dependencies.rbac import require_roles
 
 router = APIRouter()
 
-def get_field_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = FieldRepository(db)
+def get_field_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency to get FieldUseCase instance '''
+    repo = FieldRepository(session)
     return FieldUseCase(repo)
 
 
@@ -31,7 +32,10 @@ async def create_custom_field(
     use_case: FieldUseCase = Depends(get_field_usecase)
 ):
     created = await use_case.create(payload)
-    await FastAPICache.clear(namespace="fields:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="fields:list")
+        await FastAPICache.clear(namespace="fields_by_module:list")
     
     return created
 
@@ -45,7 +49,12 @@ async def create_custom_field(
 async def get_by_id(
     field_id: str, use_case: FieldUseCase = Depends(get_field_usecase),
 ):
-    return await use_case.get_by_id(field_id)
+    field = await use_case.get_by_id(field_id)
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="fields:list")
+        
+    return field
 
 
 @router.get(
@@ -54,6 +63,7 @@ async def get_by_id(
     dependencies=[Depends(require_roles(["super_admin", "admin", "tenant", "landlord", "agent", "manager"]))],
     status_code=status.HTTP_200_OK
 )
+@cache(expire=3600, namespace="fields_by_module:list", key_builder=list_cache_key_builder)
 async def get_all_by_module(
     module: str, use_case: FieldUseCase = Depends(get_field_usecase),
 ):
@@ -88,7 +98,10 @@ async def update_custom_field(
     field_id: str, payload: FieldUpdate, use_case: FieldUseCase = Depends(get_field_usecase)
 ):
     updated = await use_case.update(field_id, payload)
-    await FastAPICache.clear(namespace="fields:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="fields:list")
+        await FastAPICache.clear(namespace="fields_by_module:list")
     
     return updated
 
@@ -101,4 +114,8 @@ async def update_custom_field(
 async def soft_delete(
     field_id: str, use_case: FieldUseCase = Depends(get_field_usecase),
 ):
-    return await use_case.delete(field_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="fields:list")
+        await FastAPICache.clear(namespace="fields_by_module:list")
+
+    return await use_case.soft_delete(field_id)

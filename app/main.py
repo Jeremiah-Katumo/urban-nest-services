@@ -7,13 +7,13 @@ from .api import (
     auth_routes, user_routes, property_routes, agent_routes, 
     landlord_routes, tenant_routes, transporter_routes,
     permission_routes, role_routes, field_routes, value_routes,
-    subscription_routes, support_ticket_routes
+    subscription_routes, support_ticket_routes, campaign_routes
 )
 from .infrastructure.db.database import db
 from .core.seeder import seed_roles_permissions
 
 
-app = FastAPI(root_path="/api/v1")
+app = FastAPI(root_path="/api/v1", docs_url="/docs")
 
 # Development
 @app.on_event("startup")
@@ -52,3 +52,4 @@ app.include_router(field_routes.router, prefix="/fields", tags=["Field"])
 app.include_router(value_routes.router, prefix="/values", tags=["Value"])
 app.include_router(subscription_routes.router, prefix="/subscriptions", tags=["Subscription"])
 app.include_router(support_ticket_routes.router, prefix="/support_tickets", tags=["Support Ticket"])
+app.include_router(campaign_routes.router, prefix="/campaigns", tags=["Campaign"])

@@ -16,6 +16,7 @@ from ..dependencies.rbac import require_roles
 router = APIRouter()
 
 def get_tenant_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency function to get an instance of TenantUseCase with the database session '''
     repo = TenantRepository(session)
     return TenantUseCase(repo, response_schema=TenantRead)
 
@@ -29,7 +30,10 @@ def get_tenant_usecase(session: AsyncSession = Depends(db.get_db)):
 async def get_by_id(
     tenant_id: str, use_case: TenantUseCase = Depends(get_tenant_usecase),
 ):
-    return await use_case.get_by_id(tenant_id)
+    tenant = await use_case.get_by_id(tenant_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="tenants:list")
+    return tenant
 
 
 @router.get(
@@ -62,7 +66,8 @@ async def update_tenant(
     tenant_id: str, payload: TenantUpdate, use_case: TenantUseCase = Depends(get_tenant_usecase)
 ):
     updated = await use_case.update(tenant_id, payload)
-    await FastAPICache.clear(namespace="tenants:list")
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="tenants:list")
     
     return updated
 
@@ -75,4 +80,6 @@ async def update_tenant(
 async def soft_delete(
     tenant_id: str, use_case: TenantUseCase = Depends(get_tenant_usecase),
 ):
-    return await use_case.delete(tenant_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="tenants:list")
+    return await use_case.soft_delete(tenant_id)

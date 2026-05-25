@@ -39,14 +39,17 @@ class AuditMixin:
 
     @declared_attr
     def created_by_user(cls):
+        ''' Relationships to UserModel for audit fields '''
         return relationship("UserModel", foreign_keys=[cls.created_by], lazy="selectin")
 
     @declared_attr
     def updated_by_user(cls):
+        ''' Relationship to UserModel for updated_by field '''
         return relationship("UserModel", foreign_keys=[cls.updated_by], lazy="selectin")
 
     @declared_attr
     def deleted_by_user(cls):
+        ''' Relationship to UserModel for deleted_by field '''
         return relationship("UserModel", foreign_keys=[cls.deleted_by], lazy="selectin")
 
 

@@ -16,6 +16,7 @@ from ..dependencies.rbac import require_roles
 router = APIRouter()
 
 def get_transporter_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency to get the TransporterUseCase with the repository injected. '''
     repo = TransporterRepository(session)
     return TransporterUseCase(repo, response_schema=TransporterRead)
 
@@ -29,7 +30,10 @@ def get_transporter_usecase(session: AsyncSession = Depends(db.get_db)):
 async def get_by_id(
     transporter_id: str, use_case: TransporterUseCase = Depends(get_transporter_usecase),
 ):
-    return await use_case.get_by_id(transporter_id)
+    transporter = await use_case.get_by_id(transporter_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="transporters:list")
+    return transporter
 
 
 @router.get(
@@ -62,7 +66,8 @@ async def update_tranporter(
     transporter_id: str, payload: TransporterUpdate, use_case: TransporterUseCase = Depends(get_transporter_usecase)
 ):
     updated = await use_case.update(transporter_id, payload)
-    await FastAPICache.clear(namespace="transporters:list")
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="transporters:list")
     
     return updated
 
@@ -75,4 +80,7 @@ async def update_tranporter(
 async def soft_delete(
     transporter_id: str, use_case: TransporterUseCase = Depends(get_transporter_usecase),
 ):
-    return await use_case.delete(transporter_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="transporters:list")
+        
+    return await use_case.soft_delete(transporter_id)

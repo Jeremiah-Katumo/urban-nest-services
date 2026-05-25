@@ -15,8 +15,9 @@ from ..dependencies.rbac import require_roles
 
 router = APIRouter()
 
-def get_field_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = ValueRepository(db)
+def get_field_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency to get ValueUseCase instance '''
+    repo = ValueRepository(session)
     return ValueUseCase(repo)
 
 
@@ -31,7 +32,8 @@ async def create_custom_value(
     use_case: ValueUseCase = Depends(get_field_usecase)
 ):
     created = await use_case.create(payload)
-    await FastAPICache.clear(namespace="values:list")
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="values:list")
     
     return created
 
@@ -45,7 +47,10 @@ async def create_custom_value(
 async def get_by_id(
     field_id: str, use_case: ValueUseCase = Depends(get_field_usecase),
 ):
-    return await use_case.get_by_id(field_id)
+    custom_value = await use_case.get_by_id(field_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="values:list")
+    return custom_value
 
 
 @router.get(
@@ -57,7 +62,10 @@ async def get_by_id(
 async def get_all_by_module_and_entity(
     entity_id: str, module: str, use_case: ValueUseCase = Depends(get_field_usecase),
 ):
-    return await use_case.get_by_entity(module, entity_id)
+    custom_value = await use_case.get_by_entity(module, entity_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="values:list")
+    return custom_value
 
 
 @router.get(
@@ -88,7 +96,8 @@ async def update_custom_value(
     field_id: str, payload: ValueUpdate, use_case: ValueUseCase = Depends(get_field_usecase)
 ):
     updated = await use_case.update(field_id, payload)
-    await FastAPICache.clear(namespace="values:list")
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="values:list")
     
     return updated
 
@@ -101,4 +110,6 @@ async def update_custom_value(
 async def soft_delete(
     field_id: str, use_case: ValueUseCase = Depends(get_field_usecase),
 ):
-    return await use_case.delete(field_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="values:list")
+    return await use_case.soft_delete(field_id)

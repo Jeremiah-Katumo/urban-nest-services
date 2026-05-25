@@ -15,8 +15,9 @@ from ..dependencies.rbac import require_roles
 
 router = APIRouter()
 
-def get_subscription_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = SubscriptionRepository(db)
+def get_subscription_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency function to get an instance of SubscriptionUseCase with the database session '''
+    repo = SubscriptionRepository(session)
     return SubscriptionUseCase(repo)
 
 
@@ -31,7 +32,9 @@ async def create_subscription(
     use_case: SubscriptionUseCase = Depends(get_subscription_usecase)
 ):
     created = await use_case.create(payload)
-    await FastAPICache.clear(namespace="subscriptions:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="subscriptions:list")
     
     return created
 
@@ -45,7 +48,12 @@ async def create_subscription(
 async def get_by_id(
     subscription_id: str, use_case: SubscriptionUseCase = Depends(get_subscription_usecase),
 ):
-    return await use_case.get_by_id(subscription_id)
+    subscription = await use_case.get_by_id(subscription_id)
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="subscriptions:list")
+        
+    return subscription
 
 
 @router.get(
@@ -76,7 +84,9 @@ async def update_subscription(
     subscription_id: str, payload: SubscriptionUpdate, use_case: SubscriptionUseCase = Depends(get_subscription_usecase)
 ):
     updated = await use_case.update(subscription_id, payload)
-    await FastAPICache.clear(namespace="subscriptions:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="subscriptions:list")
     
     return updated
 
@@ -89,4 +99,7 @@ async def update_subscription(
 async def soft_delete(
     subscription_id: str, use_case: SubscriptionUseCase = Depends(get_subscription_usecase),
 ):
-    return await use_case.delete(subscription_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="subscriptions:list")
+        
+    return await use_case.soft_delete(subscription_id)

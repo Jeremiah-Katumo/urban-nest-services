@@ -16,8 +16,9 @@ from ..dependencies.rbac import require_roles, require_permission
 
 router = APIRouter()
 
-def get_permission_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = PermissionRepository(db)
+def get_permission_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency function to get an instance of PermissionUseCase with the database session '''
+    repo = PermissionRepository(session)
     return PermissionUseCase(repo)
 
 
@@ -30,7 +31,12 @@ async def create_permission(
     payload: PermissionCreate,
     use_case: PermissionUseCase = Depends(get_permission_usecase),
 ):
-    return await use_case.create(payload)    
+    created = await use_case.create(payload)
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="permissions:list")
+        
+    return created
 
 
 @router.get(
@@ -42,7 +48,12 @@ async def create_permission(
 async def get_by_id(
     permission_id: str, use_case: PermissionUseCase = Depends(get_permission_usecase),
 ):
-    return await use_case.get_by_id(permission_id)
+    created = await use_case.get_by_id(permission_id)
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="permissions:list")
+        
+    return created
 
 
 @router.get(
@@ -73,7 +84,9 @@ async def update_permission(
     permission_id: str, payload: PermissionUpdate, use_case: PermissionUseCase = Depends(get_permission_usecase)
 ):
     updated = await use_case.update(permission_id, payload)
-    await FastAPICache.clear(namespace="permissions:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="permissions:list")
     
     return updated
 
@@ -85,6 +98,9 @@ async def assign_permission_to_role(
     use_case: PermissionUseCase = Depends(get_permission_usecase),
     current_user=Depends(require_permission("assign_permissions"))
 ):
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="permissions:list")
+        
     return await use_case.assign_permission_to_role(role_id, permission_id)    
 
 
@@ -95,6 +111,9 @@ async def assign_permission_to_user(
     use_case: PermissionUseCase = Depends(get_permission_usecase),
     current_user=Depends(require_permission("assign_permissions"))
 ):
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="permissions:list")
+        
     return await use_case.assign_permission_to_user(user_id, permission_id) 
 
 
@@ -120,4 +139,7 @@ async def user_has_permission(
 async def soft_delete(
     permission_id: str, use_case: PermissionUseCase = Depends(get_permission_usecase),
 ):
-    return await use_case.delete(permission_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="permissions:list")
+        
+    return await use_case.soft_delete(permission_id)

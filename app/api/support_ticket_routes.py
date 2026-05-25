@@ -4,7 +4,8 @@ from fastapi_cache.decorator import cache
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.entities.support_ticket_entity import (
-    SupportTicketCreate, SupportTicketRead, SupportTicketUpdate, SupportTicketPaginationList, AISupportTicketRead
+    SupportTicketCreate, SupportTicketRead, SupportTicketUpdate,
+    SupportTicketPaginationList, AISupportTicketRead
 )
 from ..infrastructure.db.database import db
 from ..domain.usecases.support_ticket_usecase import SupportTicketUseCase
@@ -15,8 +16,9 @@ from ..dependencies.rbac import require_roles
 
 router = APIRouter()
 
-def get_support_ticket_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = SupportTicketRepository(db)
+def get_support_ticket_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency function to get an instance of SupportTicketUseCase with the database session '''
+    repo = SupportTicketRepository(session)
     return SupportTicketUseCase(repo)
 
 
@@ -31,7 +33,8 @@ async def create_support_ticket(
     use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase)
 ):
     created = await use_case.create(payload)
-    await FastAPICache.clear(namespace="tickets:list")
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="tickets:list")
     
     return created
 
@@ -45,7 +48,10 @@ async def create_support_ticket(
 async def get_by_id(
     ticket_id: str, use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase),
 ):
-    return await use_case.get_by_id(ticket_id)
+    ticket = await use_case.get_by_id(ticket_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="tickets:list")
+    return ticket
 
 
 @router.get(
@@ -76,7 +82,9 @@ async def update_support_ticket(
     ticket_id: str, payload: SupportTicketUpdate, use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase)
 ):
     updated = await use_case.update(ticket_id, payload)
-    await FastAPICache.clear(namespace="tenants:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="tickets:list")
     
     return updated
 
@@ -89,15 +97,18 @@ async def update_support_ticket(
 async def soft_delete(
     ticket_id: str, use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase),
 ):
-    return await use_case.delete(ticket_id)
+    return await use_case.soft_delete(ticket_id)
 
 
 @router.post("/ai/advanced")
-def ai_support(
+async def ai_support(
     session_id: str,
     role: str,
     user_id: int,
     query: str,
     use_case: SupportTicketUseCase = Depends(get_support_ticket_usecase),
 ):
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="tickets:list")
+        
     return use_case.ai_support(db, session_id, role, user_id, query)

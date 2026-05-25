@@ -6,6 +6,18 @@ from ..infrastructure.db.database import db as async_session
 
 
 async def seed_permissions(db: AsyncSession):
+    ''' Seeds the database with predefined permissions.
+    
+        Arguments: 
+            - db: An asynchronous database session used to interact with the database.
+            
+        Functionality:
+        - Retrieves existing permissions from the database to avoid duplicates.
+        - Compares existing permissions with the predefined PermissionEnum and creates any missing permissions.
+        - Uses transactions to ensure data integrity and prevent duplicates.
+        - Designed to be idempotent, allowing safe re-seeding without creating duplicates.
+        - Logs progress and results for visibility.
+    '''
     result = await db.execute(select(PermissionModel.name))
     existing_permissions = {row(0) for row in result.fetchall()}
     # existing_permissions = set(result.scalars().all())
@@ -24,7 +36,7 @@ async def seed_permissions(db: AsyncSession):
         db.add_all(new_permissions)
         await db.commit()
 
-
+# Roles and their associated permissions
 roles_permissions_map = {
     "admin": [
         "generate_description", "view_reports", "view_dashboard",
@@ -88,6 +100,7 @@ roles_permissions_map = {
     ],
 }
 
+# Permission description for better clarity in the database
 permissions_descriptions = {
     "view_users": "Ability to view users",
     "view_user": "Ability to view a single user",
@@ -129,6 +142,13 @@ permissions_descriptions = {
 
 
 async def seed_roles_permissions():
+    ''' Seeds the database with predefined roles and permissions. 
+        - Creates missing permissions based on PermissionEnum.
+        - Creates/updates roles and assigns permissions based on roles_permissions_map.
+        - Uses transactions to ensure data integrity and prevent duplicates.
+        - Designed to be idempotent, allowing safe re-seeding without creating duplicates.
+        - Logs progress and results for visibility.
+    '''
     async for session in async_session.get_session():
         async with session.begin():
 

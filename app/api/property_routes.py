@@ -15,8 +15,9 @@ from ..dependencies.rbac import require_roles
 
 router = APIRouter()
 
-def get_property_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = PropertyRepository(db)
+def get_property_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency function to get an instance of PropertyUseCase with the database session '''
+    repo = PropertyRepository(session)
     return PropertyUseCase(repo)
 
 
@@ -30,7 +31,12 @@ async def create_property(
     data: PropertyCreate,
     use_case: PropertyUseCase = Depends(get_property_usecase)
 ):
-    return await use_case.create(data)
+    created = await use_case.create(data)
+
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="properties:list")
+
+    return created
 
 
 @router.get(
@@ -42,7 +48,12 @@ async def create_property(
 async def get_by_id(
     property_id: str, use_case: PropertyUseCase = Depends(get_property_usecase),
 ):
-    return await use_case.get_by_id(property_id)
+    property = await use_case.get_by_id(property_id)
+
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="properties:list")
+
+    return property
 
 
 @router.get(
@@ -73,7 +84,9 @@ async def update_property(
     property_id: str, payload: PropertyUpdate, use_case: PropertyUseCase = Depends(get_property_usecase)
 ):
     updated = await use_case.update(property_id, payload)
-    await FastAPICache.clear(namespace="users:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="properties:list")
     
     return updated
 
@@ -87,7 +100,12 @@ async def update_property(
 async def assign_landlord(
     property_id: str, landlord_id: str, use_case: PropertyUseCase = Depends(get_property_usecase),
 ):
-    return await use_case.assign_landlord(property_id, landlord_id)
+    assigned = await use_case.assign_landlord(property_id, landlord_id)
+
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="properties:list")
+
+    return assigned
 
 
 @router.patch(
@@ -99,7 +117,12 @@ async def assign_landlord(
 async def assign_agent(
     property_id: str, agent_id: str, use_case: PropertyUseCase = Depends(get_property_usecase),
 ):
-    return await use_case.assign_agent(property_id, agent_id)
+    assigned = await use_case.assign_agent(property_id, agent_id)
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="properties:list")
+    
+    return assigned
 
 
 @router.delete(
@@ -110,4 +133,7 @@ async def assign_agent(
 async def soft_delete(
     property_id: str, use_case: PropertyUseCase = Depends(get_property_usecase),
 ):
-    return await use_case.delete(property_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="properties:list")
+        
+    return await use_case.soft_delete(property_id)

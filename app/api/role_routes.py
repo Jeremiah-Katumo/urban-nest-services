@@ -16,8 +16,9 @@ from ..dependencies.rbac import require_roles, require_permission
 
 router = APIRouter()
 
-def get_role_usecase(db: AsyncSession = Depends(db.get_db)):
-    repo = RoleRepository(db)
+def get_role_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency function to get an instance of RoleUseCase with the database session '''
+    repo = RoleRepository(session)
     return RoleUseCase(repo)
 
 
@@ -30,7 +31,12 @@ async def create_role(
     payload: RoleCreate,
     use_case: RoleUseCase = Depends(get_role_usecase),
 ):
-    return await use_case.create(payload) 
+    created = await use_case.create(payload)
+
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="roles:list")
+
+    return created
 
 
 @router.post(
@@ -45,7 +51,12 @@ async def create_role_with_permissions(
     permission_list: List[str] = Query(..., description="List of permissions to assign to the role"),
     use_case: RoleUseCase = Depends(get_role_usecase)
 ):
-    return await use_case.create_role_with_permissions(payload, permission_list)
+    created = await use_case.create_role_with_permissions(payload, permission_list)
+
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="roles:list")
+
+    return created
 
 
 @router.get(
@@ -57,7 +68,12 @@ async def create_role_with_permissions(
 async def get_by_id(
     role_id: str, use_case: RoleUseCase = Depends(get_role_usecase),
 ):
-    return await use_case.get_by_id(role_id)
+    role = await use_case.get_by_id(role_id)
+
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="roles:list")
+
+    return role
 
 
 @router.get(
@@ -88,7 +104,9 @@ async def update_role(
     role_id: str, payload: RoleUpdate, use_case: RoleUseCase = Depends(get_role_usecase)
 ):
     updated = await use_case.update(role_id, payload)
-    await FastAPICache.clear(namespace="roles:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="roles:list")
     
     return updated
 
@@ -103,8 +121,13 @@ async def assign_role_to_user(
     role_id: str,
     use_case: RoleUseCase = Depends(get_role_usecase),
 ):
-    return await use_case.assign_role_to_user(user_id, role_id)
+    assigned = await use_case.assign_role_to_user(user_id, role_id)
     
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="users:list")
+    
+    return assigned
+
 
 @router.delete(
     "/{role_id}", 
@@ -114,4 +137,7 @@ async def assign_role_to_user(
 async def soft_delete(
     role_id: str, use_case: RoleUseCase = Depends(get_role_usecase),
 ):
-    return await use_case.delete(role_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="roles:list")
+        
+    return await use_case.soft_delete(role_id)

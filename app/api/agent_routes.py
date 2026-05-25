@@ -16,6 +16,7 @@ from ..dependencies.rbac import require_roles
 router = APIRouter()
 
 def get_agent_usecase(session: AsyncSession = Depends(db.get_db)):
+    ''' Dependency function to get an instance of AgentUseCase with the database session '''
     repo = AgentRepository(session)
     return AgentUseCase(repo, response_schema=AgentRead)
 
@@ -29,7 +30,12 @@ def get_agent_usecase(session: AsyncSession = Depends(db.get_db)):
 async def get_by_id(
     agent_id: str, use_case: AgentUseCase = Depends(get_agent_usecase),
 ):
-    return await use_case.get_by_id(agent_id)
+    created = await use_case.get_by_id(agent_id)
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="agents:list")
+        
+    return created
 
 
 @router.get(
@@ -62,7 +68,9 @@ async def update_agent(
     agent_id: str, payload: AgentUpdate, use_case: AgentUseCase = Depends(get_agent_usecase)
 ):
     updated = await use_case.update(agent_id, payload)
-    await FastAPICache.clear(namespace="agents:list")
+    
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="agents:list")
     
     return updated
 
@@ -75,4 +83,7 @@ async def update_agent(
 async def soft_delete(
     agent_id: str, use_case: AgentUseCase = Depends(get_agent_usecase),
 ):
-    return await use_case.delete(agent_id)
+    if FastAPICache.get_backend():
+        await FastAPICache.clear(namespace="agents:list")
+        
+    return await use_case.soft_delete(agent_id)
