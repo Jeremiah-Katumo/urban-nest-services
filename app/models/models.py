@@ -249,6 +249,33 @@ class TransporterModel(Base, BaseModelMixin):
     )
     
 
+class TeamMemberModel(Base, BaseModelMixin):
+    __tablename__ = "team_members"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+    entity_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"))
+    
+    username = Column(String(100), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+
+    email = Column(String(50), unique=True, nullable=False, index=True)
+    phone = Column(String(20), nullable=False)
+    avatar = Column(String(30), nullable=True)
+    
+    role = Column(SqlEnum(user_enum.UserRoles), nullable=False, default=user_enum.UserRoles.CUSTOMER)
+
+    user = relationship(
+        "UserModel", 
+        back_populates="team_member",
+        foreign_keys="UserModel.team_member_id",
+        lazy="selectin",
+        uselist=False
+    )
+    entity = relationship("EntityModel")
+    
+
 class UserModel(Base, BaseModelMixin):
     __tablename__ = "users"
 
@@ -276,11 +303,13 @@ class UserModel(Base, BaseModelMixin):
     landlord_id = Column(String(36), ForeignKey("landlords.id", ondelete="CASCADE"), nullable=True)
     agent_id = Column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), nullable=True)
     transporter_id = Column(String(36), ForeignKey("transporters.id", ondelete="CASCADE"), nullable=True)
+    team_member_id = Column(String(36), ForeignKey("team_members.id", ondelete="CASCADE"), nullable=True)
     
     tenant = relationship("TenantModel", back_populates="user", foreign_keys=[tenant_id], uselist=False)
     landlord = relationship("LandlordModel", back_populates="user", foreign_keys=[landlord_id], uselist=False)
     agent = relationship("AgentModel", back_populates="user", foreign_keys=[agent_id], uselist=False)
     transporter = relationship("TransporterModel", back_populates="user", foreign_keys=[transporter_id], uselist=False)
+    team_member = relationship("TeamMemberModel", back_populates="user", foreign_keys=[team_member_id], uselist=False)
     roles = relationship('RoleModel', secondary=user_roles, back_populates="users", lazy="selectin")  # many-to-many
     entity = relationship(
         "EntityModel",
@@ -384,8 +413,24 @@ class EntityModel(Base, BaseModelMixin):
         nullable=True
     )
     status = Column(SqlEnum(base_enum.BaseStatus), default=base_enum.BaseStatus.ACTIVE)
+    
+    entity_heading = Column(String, nullable=True)
+    hero_section = Column(JSON, nullable=True)
+    
+    about = Column(Text, nullable=True)
+    mission = Column(Text, nullable=True)
+    vision = Column(Text, nullable=True)
+    motto = Column(String, nullable=True)
+
+    contacts = Column(JSON, nullable=True)
+    footer = Column(JSON, nullable=True)
 
     bookings = relationship("BookingModel", back_populates="entity")    
+    team_members = relationship(
+        "TeamMemberModel",
+        back_populates="entity",
+        cascade="all, delete-orphan"
+    )
     
     
 class FieldModel(Base, BaseModelMixin):
