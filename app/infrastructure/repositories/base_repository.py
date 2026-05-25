@@ -54,7 +54,7 @@ class BaseRepository(Generic[TModel]):
             - relations: A list of related model names to load with the main entity.
             - Returns a paginated response containing the list of entities and metadata.
         '''
-        stmt = select(self.model).where(self.model.deleted_at.is_(None))
+        stmt = select(self.model).where(self.model.deleted_at.is_(None))  # Exclude soft-deleted records
         
         if relations:
             for rel in relations:
@@ -72,6 +72,34 @@ class BaseRepository(Generic[TModel]):
         users = result.scalars().unique().all()
         
         return await query_manager.QueryManager.build_response(users, page, limit, total)
+    
+    # create a get all method that fetches all items iiregardless of deleted_at value, and apply pagination, filters, or sorting. This will be used for internal purposes when we want to fetch all records including soft-deleted ones.
+    async def get_all_with_deleted(self, page: int, limit: int, columns: str | None, search_filter: str | None, sort: str | None, relations: List[str] = None):
+        '''' Retrieves a paginated list of entities including soft-deleted ones, with optional filtering, sorting, and related data loading.
+            - page: The page number for pagination (1-based index).
+            - limit: The number of items per page for pagination.
+            - columns: A string of column names separated by "-" to select specific columns, or "all" to select all columns.
+            - search_filter: A string of filter criteria separated by "-" to apply to the query.
+            - sort: A string of column names separated by "-" to sort by.
+            - relations: A list of related model names to load with the main entity.
+            - Returns a paginated response containing the list of entities (including soft-deleted ones) and metadata.
+        '''
+        stmt = select(self.model).where(self.model.deleted_at.isnot(None))  # Include soft-deleted records
+        
+        if relations:
+            for rel in relations:
+                if hasattr(self.model, rel):
+                    stmt = stmt.options(selectinload(getattr(self.model, rel)))
+        
+        stmt = await query_manager.QueryManager.apply_columns(stmt, self.model, columns) 
+        stmt = await query_manager.QueryManager.apply_filters(stmt, self.model, search_filter) 
+        stmt = await query_manager.QueryManager.apply_sort(stmt, self.model, sort) 
+        
+        result, total = await query_manager.QueryManager.paginate(self.db, stmt, page, limit)
+
+        items = result.scalars().unique().all()
+        
+        return await query_manager.QueryManager.build_response(items, page, limit, total)
     
     async def create(self, obj) -> TModel:
         ''' Creates a new entity in the database.
@@ -163,6 +191,26 @@ class BaseRepository(Generic[TModel]):
             
         await self.db.delete(instance)
         await self.db.flush()
+        
+        return instance
+    
+    async def restore(self, entity_id: str) -> TModel:
+        ''' Restores a soft-deleted entity by setting its deleted_at field to None.
+            - entity_id: The unique identifier of the entity to restore.
+            - Retrieves the existing entity by ID, sets its deleted_at field to None, commits the transaction, and returns the restored instance.
+            - If the entity is not found, raises a 404 Not Found HTTP exception.
+            - Returns the restored entity instance.
+        '''
+        instance = await self.get_by_id(entity_id)
+        if not instance:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found"
+            )
+            
+        if hasattr(instance, "deleted_at"):
+            instance.deleted_at = None
+            await self.db.commit()
+            await self.db.refresh(instance)
         
         return instance
         

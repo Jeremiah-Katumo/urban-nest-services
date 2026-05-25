@@ -126,6 +126,50 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
 
         return result
     
+    async def get_all_with_deleted(
+        self,
+        page: int = 1,
+        limit: int = 10,
+        columns: Optional[str] = None,
+        search_filter: Optional[str] = None,
+        sort: Optional[str] = None,
+        relations: Optional[List[str]] = None,
+    ):
+        ''' Retrieves a paginated list of all entities including soft-deleted ones, with optional filtering, sorting, and related data loading.
+            - page: The page number for pagination (default: 1).
+            - limit: The number of items per page for pagination (default: 10).
+            - columns: An optional string of comma-separated column names to include in the response.
+            - search_filter: An optional string for filtering results based on specific criteria.
+            - sort: An optional string of comma-separated column names to sort by.
+            - relations: An optional list of related entities to include in the response.
+            - Validates pagination parameters, applies filtering and sorting, and retrieves the results using the repository's get_all_with_deleted method.
+            - If no results are found, returns an empty list with pagination metadata. Otherwise, returns a list of entity instances along with pagination metadata.
+            - If a response schema is defined, serializes the results using the schema before returning.
+            - Returns a dictionary containing the list of items and pagination metadata (total count, page number, and limit).
+        '''
+        # GuardRails
+        if page < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Page must be >= 1"
+            )
+
+        if limit < 1 or limit > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Limit must be between 1 and 100"
+            )
+
+        # Call repository to get results, which should return a dict with "items", "total", "page", "pages" and "page_size" aka limit
+        result = await self.repo.get_all_with_deleted(page, limit, columns, search_filter, sort, relations)
+
+        # ✅ Generic serialization
+        if self.response_schema and result.get("items"):
+            result["items"] = [
+                self.response_schema.model_validate(item, from_attributes=True)
+                for item in result["items"]
+            ]
+
+        return result
+
     async def create(self, data: TCreate) -> TModel:
         ''' Creates a new entity in the database.
             - data: The data used to create the new entity, typically a Pydantic model or a dictionary.
@@ -186,3 +230,58 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
         await self.before_delete(instance)
         
         return await self.repo.delete(entity_id)
+    
+    async def restore(self, entity_id: str) -> TModel:
+        ''' Restores a soft-deleted entity in the database.
+            - entity_id: The unique identifier of the entity to restore.
+            - Uses the repository's restore method to set the deleted_at field of the soft-deleted entity to None, effectively restoring it.
+            - If the entity is not found or is not soft-deleted, raises a 404 Not Found HTTP exception.
+            - Returns the restored entity instance.
+        '''
+        return await self.repo.restore(entity_id)
+    
+    async def create_with_custom_fields(self, data_obj: Dict, custom_fields: List[Dict]) -> TModel:
+        ''' Creates a new entity with custom fields that are not defined in the standard create schema.
+            - data_obj: A dictionary containing the data for the new entity, including any custom fields.
+            - custom_fields: A list of dictionaries representing the custom fields to be associated with the new entity.
+            - Calls the before_create hook to allow for any custom logic before creation, then uses the repository's create method to persist the new entity in the database.
+            - Calls the after_create hook to allow for any custom logic after creation before returning the created instance.
+            - Returns the newly created entity instance.
+        '''
+        data_obj = await self.before_create(data_obj)
+        
+        instance = await self.repo.create_with_custom_fields(data_obj, custom_fields)
+        
+        return await self.after_create(instance)
+    
+    async def update_with_custom_fields(
+        self, 
+        entity_id: str, 
+        data: dict, 
+        custom_fields: List[Dict] = None
+    ) -> TModel:
+        ''' Updates an existing entity with custom fields that are not defined in the standard update schema.
+            - entity_id: The unique identifier of the entity to update.
+            - data: A dictionary containing the data to update the entity with, including any custom fields.
+            - custom_fields: An optional list of dictionaries representing the custom fields to be associated with the updated entity.
+            - Retrieves the existing entity by ID, calls the before_update hook to allow for any custom logic before updating, then uses the repository's update method to persist the changes in the database.
+            - Calls the after_update hook to allow for any custom logic after updating before returning the updated instance.
+            - If the entity is not found, raises a 404 Not Found HTTP exception.
+            - Returns the updated entity instance.
+        '''
+        instance = await self.get_by_id(entity_id)
+        
+        data = await self.before_update(instance, data)
+        
+        updated = await self.repo.update_with_custom_fields(entity_id, data, custom_fields)
+        
+        return await self.after_update(updated)
+    
+    async def get_custom_fields(self, module: str, entity_id: str):
+        ''' Retrieves the custom fields associated with a specific entity.
+            - module: The name of the module to which the entity belongs (e.g., "campaigns", "properties").
+            - entity_id: The unique identifier of the entity for which to retrieve custom fields.
+            - Uses the repository's get_custom_fields method to fetch the custom fields from the database based on the provided module and entity ID.
+            - Returns a list of custom fields associated with the specified entity.
+        '''
+        return await self.repo.get_custom_fields(module, entity_id)
