@@ -285,3 +285,14 @@ class BaseUseCase(Generic[TModel, TCreate, TUpdate]):
             - Returns a list of custom fields associated with the specified entity.
         '''
         return await self.repo.get_custom_fields(module, entity_id)
+    
+    async def assign_entity(self, entity_id: str, target_model: str, target_id: str) -> TModel:
+        ''' Assigns a related entity to the specified entity based on the provided relation name.
+            - entity_id: The unique identifier of the main entity to which a related entity will be assigned.
+            - target_model: The name of the target model to which the entity will be assigned.
+            - target_id: The unique identifier of the target entity that will be assigned to the main entity.
+            - Uses the repository's assign_entity method to create an association between the main entity and the related entity in the database based on the specified relation name.
+            - If either the main entity or the related entity is not found, raises a 404 Not Found HTTP exception.
+            - Returns the updated main entity instance with the new relationship established.
+        '''
+        return await self.repo.assign_entity(entity_id, target_model, target_id)

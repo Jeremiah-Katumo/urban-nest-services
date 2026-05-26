@@ -7,7 +7,8 @@ from .api import (
     auth_routes, user_routes, property_routes, agent_routes, 
     landlord_routes, tenant_routes, transporter_routes,
     permission_routes, role_routes, field_routes, value_routes,
-    subscription_routes, support_ticket_routes, campaign_routes
+    subscription_routes, support_ticket_routes, campaign_routes,
+    entity_routes
 )
 from .infrastructure.db.database import db
 from .core.seeder import seed_roles_permissions
@@ -41,6 +42,7 @@ def home():
 
 app.include_router(auth_routes.router, prefix="/auth", tags=["Auth"])
 app.include_router(user_routes.router, prefix="/users", tags=["User"])
+app.include_router(entity_routes.router, prefix="/entities", tags=["Entity"])
 app.include_router(landlord_routes.router, prefix="/landlords", tags=["Landlord"])
 app.include_router(agent_routes.router, prefix="/agents", tags=["Agent"])
 app.include_router(property_routes.router, prefix="/properties", tags=["Property"])

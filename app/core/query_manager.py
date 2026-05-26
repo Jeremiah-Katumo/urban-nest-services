@@ -11,6 +11,18 @@ class QueryManager:
     '''
     
     @staticmethod
+    async def get_model_by_tablename(db_session, tablename):
+        ''' Retrieves a SQLAlchemy model class based on the provided table name.
+            - db_session: The database session to access the metadata.
+            - tablename: The name of the table for which to retrieve the model class.
+            - Returns the SQLAlchemy model class corresponding to the specified table name, or None if not found.
+        '''
+        for cls in db_session.registry.mappers:
+            if cls.persist_selectable.name == tablename:
+                return cls.class_
+        return None
+    
+    @staticmethod
     async def apply_columns(stmt, model, columns: str | None):
         ''' Modifies a query to select only specified columns.
             - stmt: The SQLAlchemy query statement to modify.

@@ -285,3 +285,42 @@ class BaseRepository(Generic[TModel]):
         if not self.value_repo:
             return []
         return await self.value_repo.get_by_entity(module, entity_id)
+    
+    # create a method that assigns an entity to any feature/model with entity_id key column
+    async def assign_entity(self, entity_id: str, target_model: str, target_id: str):
+        ''' Assigns an entity to a target model by updating the target model's entity_id field with the provided entity_id.
+            - entity_id: The unique identifier of the entity to assign.
+            - target_model: The name of the target model (table) to which the entity should be assigned.
+            - target_id: The unique identifier of the target model instance to which the entity should be assigned.
+            - Retrieves the target model instance by its ID, updates its entity_id field with the provided entity_id, commits the transaction, and returns the updated target instance.
+            - If the target model or instance is not found, raises a 404 Not Found HTTP exception.
+            - Returns the updated target model instance with the assigned entity.
+        '''
+        # Dynamically get the target model class from the model name
+        target_cls = await query_manager.QueryManager.get_model_by_tablename(self.db, target_model)
+        if not target_cls:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Target model not found"
+            )
+            
+        # Retrieve the target instance by ID
+        result = await self.db.execute(
+            select(target_cls).where(target_cls.id == target_id)
+        )
+        target_instance = result.scalar_one_or_none()
+        if not target_instance:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Target instance not found"
+            )
+            
+        # Update the target instance's entity_id field with the provided entity_id
+        if hasattr(target_instance, "entity_id"):
+            setattr(target_instance, "entity_id", entity_id)
+            await self.db.commit()
+            await self.db.refresh(target_instance)
+            return target_instance
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Target model does not have an entity_id field"
+            )
+            
